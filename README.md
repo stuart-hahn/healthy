@@ -6,8 +6,9 @@ This repo also keeps Cursor-oriented docs (`.cursor/`, `AGENTS.md`, `docs/contex
 
 ## Quick start (local)
 
+From the repository root:
+
 ```bash
-cd cursor-ai-project-template
 npm install
 npm run dev
 ```
