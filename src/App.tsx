@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { BUNDLED_PRESETS } from "./data/presets";
 import { linearHintUiForExercise } from "./lib/progression/hintForExercise";
 import { buildSessionSaveSummary, type SessionSaveComparison } from "./lib/sessionSaveSummary";
@@ -17,6 +17,7 @@ import {
   liftTrendVolumesChronological,
   LIFT_TREND_MAX_ROWS,
 } from "./lib/liftTrends";
+import { formatSecondsAsMmSs } from "./lib/restTimerFormat";
 import { formatTopSetPrNote } from "./lib/topSetPr";
 import { buildExportEnvelope, parseImportedAppState } from "./storage/importExport";
 import { loadAppState, saveAppState } from "./storage/state";
@@ -32,6 +33,26 @@ import type {
 } from "./types/domain";
 import type { WorkoutPresetDefinition } from "./types/preset";
 import "./App.css";
+
+const REST_SECONDS_DEFAULT_KEY = "workout-tracker:rest-seconds-default";
+const REST_PRESET_SEC = [60, 90, 120, 180] as const;
+
+function readRestSecondsDefault(): number {
+  try {
+    const raw = localStorage.getItem(REST_SECONDS_DEFAULT_KEY);
+    if (!raw) return 90;
+    const n = Number.parseInt(raw, 10);
+    if (!Number.isFinite(n) || n < 10 || n > 600) return 90;
+    return n;
+  } catch {
+    return 90;
+  }
+}
+
+function clampRestPick(sec: number): number {
+  if (!Number.isFinite(sec)) return 90;
+  return Math.min(600, Math.max(10, Math.floor(sec)));
+}
 
 const EQUIPMENT: { value: Equipment; label: string }[] = [
   { value: "barbell", label: "Barbell" },
@@ -168,6 +189,81 @@ export function App(): ReactElement {
   } | null>(null);
 
   const backupFileInputRef = useRef<HTMLInputElement>(null);
+
+  type RestPhase = "idle" | "running" | "paused" | "done";
+  const [restPhase, setRestPhase] = useState<RestPhase>("idle");
+  const [restPickSeconds, setRestPickSeconds] = useState(() => readRestSecondsDefault());
+  const [restRemaining, setRestRemaining] = useState(() => readRestSecondsDefault());
+  const [restTotal, setRestTotal] = useState(() => readRestSecondsDefault());
+
+  useEffect(() => {
+    if (restPhase !== "running") return;
+    const id = window.setInterval(() => {
+      setRestRemaining((r) => {
+        if (r <= 0) return 0;
+        if (r === 1) {
+          setRestPhase("done");
+          try {
+            navigator.vibrate?.(200);
+          } catch {
+            /* ignore */
+          }
+          return 0;
+        }
+        return r - 1;
+      });
+    }, 1000);
+    return () => window.clearInterval(id);
+  }, [restPhase]);
+
+  const persistRestDefault = useCallback((sec: number) => {
+    const c = clampRestPick(sec);
+    try {
+      localStorage.setItem(REST_SECONDS_DEFAULT_KEY, String(c));
+    } catch {
+      /* ignore */
+    }
+    return c;
+  }, []);
+
+  const startRestTimer = useCallback(() => {
+    const total = clampRestPick(restPickSeconds);
+    setRestPickSeconds(total);
+    persistRestDefault(total);
+    setRestTotal(total);
+    setRestRemaining(total);
+    setRestPhase("running");
+  }, [restPickSeconds, persistRestDefault]);
+
+  const pauseRestTimer = useCallback(() => {
+    setRestPhase("paused");
+  }, []);
+
+  const resumeRestTimer = useCallback(() => {
+    if (restRemaining <= 0) return;
+    setRestPhase("running");
+  }, [restRemaining]);
+
+  const resetRestTimer = useCallback(() => {
+    setRestRemaining(restTotal);
+  }, [restTotal]);
+
+  const skipRestTimer = useCallback(() => {
+    setRestPhase("idle");
+    setRestRemaining(restPickSeconds);
+  }, [restPickSeconds]);
+
+  const dismissRestDone = useCallback(() => {
+    setRestPhase("idle");
+    setRestRemaining(restPickSeconds);
+  }, [restPickSeconds]);
+
+  const restBarPct = useMemo(() => {
+    if (restPhase === "idle") return 0;
+    if (restTotal <= 0) return 0;
+    if (restPhase === "done") return 100;
+    return Math.min(100, Math.max(0, ((restTotal - restRemaining) / restTotal) * 100));
+  }, [restPhase, restTotal, restRemaining]);
 
   const exercisesSorted = useMemo(
     () => [...state.exercises].sort((a, b) => a.name.localeCompare(b.name)),
@@ -786,6 +882,105 @@ export function App(): ReactElement {
                   required
                 />
               </label>
+
+              <div className="rest-timer">
+                <h3 className="rest-timer-title">Rest timer</h3>
+                <p className="preset-intro rest-timer-help">
+                  Optional countdown between sets. Stays on this device. Dismiss anytime.
+                </p>
+                {restPhase === "done" ? (
+                  <div className="rest-timer-done" role="status">
+                    <span>Time&apos;s up.</span>
+                    <button type="button" className="btn btn-secondary" onClick={dismissRestDone}>
+                      Dismiss
+                    </button>
+                  </div>
+                ) : null}
+                <div
+                  className="rest-timer-display"
+                  role="timer"
+                  aria-live="polite"
+                  aria-label={
+                    restPhase === "idle"
+                      ? `Rest duration ${formatSecondsAsMmSs(restPickSeconds)}`
+                      : `Rest remaining ${formatSecondsAsMmSs(restRemaining)}`
+                  }
+                >
+                  {restPhase === "idle"
+                    ? formatSecondsAsMmSs(restPickSeconds)
+                    : formatSecondsAsMmSs(restRemaining)}
+                </div>
+                <div className="rest-timer-bar-track" aria-hidden>
+                  <div className="rest-timer-bar-fill" style={{ width: `${restBarPct}%` }} />
+                </div>
+                <div className="rest-timer-presets">
+                  {REST_PRESET_SEC.map((sec) => (
+                    <button
+                      key={sec}
+                      type="button"
+                      className={`btn btn-secondary${restPickSeconds === sec ? " btn-active" : ""}`}
+                      disabled={restPhase === "running"}
+                      onClick={() => {
+                        setRestPickSeconds(sec);
+                        persistRestDefault(sec);
+                      }}
+                    >
+                      {sec}s
+                    </button>
+                  ))}
+                </div>
+                <label className="field field-inline-rest">
+                  <span className="label">Custom (sec)</span>
+                  <input
+                    className="input input-narrow"
+                    type="number"
+                    min={10}
+                    max={600}
+                    step={5}
+                    disabled={restPhase === "running"}
+                    value={restPickSeconds}
+                    onChange={(ev) => {
+                      const n = Number.parseInt(ev.target.value, 10);
+                      const c = clampRestPick(Number.isFinite(n) ? n : 90);
+                      setRestPickSeconds(c);
+                      persistRestDefault(c);
+                    }}
+                  />
+                </label>
+                <div className="rest-timer-actions">
+                  {restPhase === "idle" ? (
+                    <button type="button" className="btn btn-primary" onClick={startRestTimer}>
+                      Start
+                    </button>
+                  ) : null}
+                  {restPhase === "running" ? (
+                    <>
+                      <button type="button" className="btn btn-secondary" onClick={pauseRestTimer}>
+                        Pause
+                      </button>
+                      <button type="button" className="btn btn-secondary" onClick={resetRestTimer}>
+                        Reset
+                      </button>
+                      <button type="button" className="btn btn-ghost" onClick={skipRestTimer}>
+                        Skip
+                      </button>
+                    </>
+                  ) : null}
+                  {restPhase === "paused" ? (
+                    <>
+                      <button type="button" className="btn btn-primary" onClick={resumeRestTimer}>
+                        Resume
+                      </button>
+                      <button type="button" className="btn btn-secondary" onClick={resetRestTimer}>
+                        Reset
+                      </button>
+                      <button type="button" className="btn btn-ghost" onClick={skipRestTimer}>
+                        Skip
+                      </button>
+                    </>
+                  ) : null}
+                </div>
+              </div>
 
               {draftBlocks.map((block, blockIndex) => (
                 <div key={blockIndex} className="session-block">

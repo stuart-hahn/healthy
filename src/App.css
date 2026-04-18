@@ -242,6 +242,12 @@
   border-color: var(--accent);
 }
 
+.btn-secondary.btn-active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 14%, var(--surface));
+}
+
 .btn-ghost {
   background: transparent;
   color: var(--muted);
@@ -506,6 +512,86 @@
   font-weight: 600;
   color: var(--muted);
   font-size: 0.8rem;
+}
+
+.rest-timer {
+  padding: 0.85rem 1rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  margin-bottom: 0.25rem;
+}
+
+.rest-timer-title {
+  margin: 0 0 0.35rem;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.rest-timer-help {
+  margin-bottom: 0.65rem !important;
+}
+
+.rest-timer-done {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.rest-timer-display {
+  font-size: 2rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin-bottom: 0.35rem;
+}
+
+.rest-timer-bar-track {
+  height: 6px;
+  border-radius: 4px;
+  background: var(--border);
+  overflow: hidden;
+  margin-bottom: 0.75rem;
+}
+
+.rest-timer-bar-fill {
+  height: 100%;
+  border-radius: 4px;
+  background: var(--accent);
+  transition: width 0.25s linear;
+}
+
+.rest-timer-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.rest-timer-presets .btn {
+  font-size: 0.85rem;
+  padding: 0.35rem 0.65rem;
+}
+
+.field-inline-rest {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 0.65rem;
+}
+
+.field-inline-rest .label {
+  margin: 0;
+}
+
+.rest-timer-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
 }
 
 .backup-actions {
