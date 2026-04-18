@@ -13,6 +13,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "test": "vitest run",
+    "ship": "bash scripts/ship.sh",
     "prepare": "husky || true"
   },
   "devDependencies": {

@@ -16,6 +16,7 @@ This repo is set up for **multi-agent and multi-session** work:
 | [`skills/`](skills/)                                                           | Installable skills — copy into `~/.agents/skills/`         |
 | [`.cursor/rules/`](.cursor/rules/)                                             | Cursor Rules (delegation + workout domain + TS + tests)    |
 | [`.cursor/hooks/`](.cursor/hooks/)                                             | Format + ESLint on save; secret guard on submit            |
+| [`docs/context/GIT_WORKFLOW.md`](docs/context/GIT_WORKFLOW.md)                 | caveman-commit style, `npm run ship`, CI                   |
 
 ADR: [`docs/decisions/0001-agent-team-and-product-north-star.md`](docs/decisions/0001-agent-team-and-product-north-star.md).
 
@@ -35,6 +36,16 @@ Open the URL Vite prints (usually `http://localhost:5173`).
 ```bash
 npm run format:check && npm run lint && npm run typecheck && npm test
 ```
+
+## Commit and push (GitHub)
+
+Messages follow **`skills/caveman-commit/SKILL.md`**. With **`origin`** configured:
+
+```bash
+npm run ship -- 'chore: example commit message'
+```
+
+See [`docs/context/GIT_WORKFLOW.md`](docs/context/GIT_WORKFLOW.md). Pushes run **pre-push** checks; GitHub runs **CI** (`.github/workflows/ci.yml`).
 
 ## Docker
 

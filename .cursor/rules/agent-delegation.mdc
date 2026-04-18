@@ -10,3 +10,4 @@ alwaysApply: true
 - End substantive work with: **done means**, files touched, and **verification** (`npm run format:check && npm run lint && npm run typecheck && npm test`).
 - If behavior or persistence changes: update `PROJECT_CONTEXT.md` or add/update `docs/decisions/*.md`.
 - Prefer **vertical slices** (UI + domain + tests) over non-integrating layers.
+- **Git**: commit messages follow `skills/caveman-commit/SKILL.md`; ship with `npm run ship -- '<msg>'` when pushing to GitHub (`docs/context/GIT_WORKFLOW.md`). No auto-commit on save.

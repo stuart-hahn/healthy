@@ -7,5 +7,6 @@ Copy any `*/SKILL.md` folder into `~/.agents/skills/<skill-name>/` (or symlink) 
 | `agent-handoff/`        | Delegation blocks, done means, scope        |
 | `progressive-overload/` | Progression math, PRs, next-session targets |
 | `workout-coaching/`     | Suggestion UI, disclosures, tone            |
+| `caveman-commit/`       | Terse Conventional Commits + `npm run ship` |
 
 See also `_TEMPLATE_SKILL.md` for creating new skills.
