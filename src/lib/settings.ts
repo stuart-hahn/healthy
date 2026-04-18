@@ -15,6 +15,7 @@ export function normalizeAppStateV2(state: AppStateV2): AppStateV2 {
   return {
     ...state,
     settings: { ...DEFAULT_USER_SETTINGS, ...state.settings },
+    templates: state.templates ?? [],
   };
 }
 

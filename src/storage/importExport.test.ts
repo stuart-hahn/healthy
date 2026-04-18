@@ -39,6 +39,14 @@ const minimalValid: AppStateV2 = {
       ],
     },
   ],
+  templates: [
+    {
+      id: "t-1",
+      name: "Full body A (custom)",
+      createdAt: "2026-01-01T00:00:00.000Z",
+      blocks: [{ id: "tb-1", exerciseId: "ex-1", exerciseName: "Squat", reps: [5, 5, 5] }],
+    },
+  ],
   settings: { weightUnit: "kg", linearIncrement: 2.5, targetReps: 8 },
 };
 

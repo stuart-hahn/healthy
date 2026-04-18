@@ -36,6 +36,23 @@ export type TrainingSession = {
   blocks: SessionBlock[];
 };
 
+/** User-defined reusable workout definition (local-only, MVP). */
+export type WorkoutTemplateBlock = {
+  id: string;
+  exerciseId: string;
+  /** Denormalized for display and for safety if catalog changes later. */
+  exerciseName: string;
+  /** Reps targets per set; weights are intentionally blank when loading. */
+  reps: number[];
+};
+
+export type WorkoutTemplate = {
+  id: string;
+  name: string;
+  createdAt: string;
+  blocks: WorkoutTemplateBlock[];
+};
+
 /** Training preferences (stored with app state). */
 export type UserSettings = {
   /** Display / entry convention for load; stored numbers are not converted. */
@@ -50,6 +67,8 @@ export type AppStateV2 = {
   version: 2;
   exercises: Exercise[];
   sessions: TrainingSession[];
+  /** Optional for older saves; merged to empty list on load. */
+  templates?: WorkoutTemplate[];
   /** Optional for older saves; merged with defaults on load. */
   settings?: Partial<UserSettings>;
 };

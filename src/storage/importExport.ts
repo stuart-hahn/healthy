@@ -6,6 +6,8 @@ import type {
   SessionBlock,
   SetEntry,
   TrainingSession,
+  WorkoutTemplate,
+  WorkoutTemplateBlock,
   UserSettings,
 } from "../types/domain";
 
@@ -114,6 +116,41 @@ function parseTrainingSession(raw: unknown): TrainingSession | null {
   };
 }
 
+function parseTemplateBlock(raw: unknown): WorkoutTemplateBlock | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== "string" || o.id.length === 0) return null;
+  if (typeof o.exerciseId !== "string" || o.exerciseId.length === 0) return null;
+  if (typeof o.exerciseName !== "string") return null;
+  if (!Array.isArray(o.reps)) return null;
+  const reps: number[] = [];
+  for (const r of o.reps) {
+    if (typeof r !== "number" || !Number.isFinite(r)) return null;
+    const rr = Math.floor(r);
+    if (rr < 1) return null;
+    reps.push(rr);
+  }
+  if (reps.length === 0) return null;
+  return { id: o.id, exerciseId: o.exerciseId, exerciseName: o.exerciseName, reps };
+}
+
+function parseWorkoutTemplate(raw: unknown): WorkoutTemplate | null {
+  if (typeof raw !== "object" || raw === null) return null;
+  const o = raw as Record<string, unknown>;
+  if (typeof o.id !== "string" || o.id.length === 0) return null;
+  if (typeof o.name !== "string" || o.name.trim().length === 0) return null;
+  if (typeof o.createdAt !== "string" || o.createdAt.length === 0) return null;
+  if (!Array.isArray(o.blocks)) return null;
+  const blocks: WorkoutTemplateBlock[] = [];
+  for (const b of o.blocks) {
+    const block = parseTemplateBlock(b);
+    if (!block) return null;
+    blocks.push(block);
+  }
+  if (blocks.length === 0) return null;
+  return { id: o.id, name: o.name, createdAt: o.createdAt, blocks };
+}
+
 function parseSettingsPartial(raw: unknown): Partial<UserSettings> | undefined {
   if (raw === undefined) return undefined;
   if (typeof raw !== "object" || raw === null) return undefined;
@@ -161,12 +198,31 @@ export function validateAppStateV2Deep(raw: unknown): AppStateV2 | null {
     sessions.push(ts);
   }
 
+  let templates: WorkoutTemplate[] | undefined;
+  if (o.templates !== undefined) {
+    if (!Array.isArray(o.templates)) return null;
+    const templateIds = new Set<string>();
+    const out: WorkoutTemplate[] = [];
+    for (const t of o.templates) {
+      const tpl = parseWorkoutTemplate(t);
+      if (!tpl) return null;
+      if (templateIds.has(tpl.id)) return null;
+      templateIds.add(tpl.id);
+      for (const block of tpl.blocks) {
+        if (!exerciseIds.has(block.exerciseId)) return null;
+      }
+      out.push(tpl);
+    }
+    templates = out;
+  }
+
   const settings = parseSettingsPartial(o.settings);
 
   const state: AppStateV2 = {
     version: 2,
     exercises,
     sessions,
+    ...(templates ? { templates } : {}),
     ...(settings ? { settings } : {}),
   };
   return state;

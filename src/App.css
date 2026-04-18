@@ -53,6 +53,18 @@
   font-weight: 600;
 }
 
+.card-title-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.card-title-row .card-title {
+  margin: 0;
+}
+
 .form {
   display: flex;
   flex-direction: column;
@@ -310,6 +322,12 @@
   border: 1px solid var(--border);
   border-radius: 8px;
   background: var(--bg);
+}
+
+.preset-card-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
 }
 
 .preset-card-main {

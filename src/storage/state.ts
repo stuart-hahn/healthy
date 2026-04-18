@@ -6,7 +6,12 @@ import { migrateV1ToV2, readLegacyRowsFromStorage } from "./migrateV1";
 function isAppStateV2(x: unknown): x is AppStateV2 {
   if (typeof x !== "object" || x === null) return false;
   const o = x as Record<string, unknown>;
-  return o.version === 2 && Array.isArray(o.exercises) && Array.isArray(o.sessions);
+  return (
+    o.version === 2 &&
+    Array.isArray(o.exercises) &&
+    Array.isArray(o.sessions) &&
+    (o.templates === undefined || Array.isArray(o.templates))
+  );
 }
 
 function parseV2(raw: string | null): AppStateV2 | null {

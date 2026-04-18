@@ -71,6 +71,10 @@ Always include body for: breaking changes, security fixes, data migrations, anyt
 
 **`pre-push`** runs `git add -A`, then **blocks** push if anything is still uncommitted vs `HEAD`. Printed steps point here and **`/caveman-commit`**. The hook **cannot** execute Cursor slash commands—generate the message in Cursor, then `git commit`, then push again. See `docs/context/GIT_WORKFLOW.md` (`SKIP_CAVEMAN_STAGED_CHECK=1` to bypass).
 
+## Staging when you type `/caveman-commit` (this repo)
+
+**Cursor project hook** `.cursor/hooks/stage-on-caveman-commit.sh`: on prompt submit, if payload contains **`/caveman-commit`**, runs **`git add -A`** at repo root so **`git commit`** / paste message works immediately. Config: `.cursor/hooks.json` → `beforeSubmitPrompt`. Copy **`skills/caveman-commit/`** to `~/.agents/skills/caveman-commit/` for the slash command; hook lives in the repo under **`.cursor/`**.
+
 ## After code changes (agents)
 
 When implementation finishes and the working tree has uncommitted changes (or the user is about to commit), **read this skill** and output:
@@ -82,4 +86,4 @@ unless the user asked not to commit. This skill does **not** run `git commit` by
 
 ## Boundaries
 
-Only generates the commit message. Does not run `git commit`, does not amend unless the user asks. **Husky `pre-push`** may run `git add -A` before you commit—see above. Output the message as a code block ready to paste. "stop caveman-commit" or "normal mode": revert to verbose commit style.
+Only generates the commit message. Does not run `git commit`, does not amend unless the user asks. **Cursor** may run **`git add -A`** when you send **`/caveman-commit`** (project hook). **Husky `pre-push`** runs **`git add -A`** then blocks push until you commit—see above. Output the message as a code block ready to paste. "stop caveman-commit" or "normal mode": revert to verbose commit style.

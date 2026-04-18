@@ -5,6 +5,7 @@ import { buildSessionSaveSummary, type SessionSaveComparison } from "./lib/sessi
 import { applyPresetToCatalog } from "./lib/presets/applyPreset";
 import { clampUserSettings, mergeUserSettings } from "./lib/settings";
 import { blockForExercise, mostRecentSession, sessionsForExercise } from "./lib/sessions";
+import { buildTemplateFromDraft } from "./lib/templates/templateFromDraft";
 import { formatTopSetPrNote } from "./lib/topSetPr";
 import { buildExportEnvelope, parseImportedAppState } from "./storage/importExport";
 import { loadAppState, saveAppState } from "./storage/state";
@@ -16,6 +17,7 @@ import type {
   SetEntry,
   TrainingSession,
   UserSettings,
+  WorkoutTemplate,
 } from "./types/domain";
 import type { WorkoutPresetDefinition } from "./types/preset";
 import "./App.css";
@@ -44,6 +46,10 @@ function draftRowsFromMovement(m: { sets: number; reps: number }): DraftSet[] {
     weight: "",
     reps: String(m.reps),
   }));
+}
+
+function draftRowsFromRepsTargets(reps: number[]): DraftSet[] {
+  return reps.map((r) => ({ weight: "", reps: String(r) }));
 }
 
 function parseDraftSets(rows: DraftSet[]): SetEntry[] {
@@ -146,6 +152,11 @@ export function App(): ReactElement {
     [state.exercises],
   );
 
+  const templatesSorted = useMemo(() => {
+    const list = state.templates ?? [];
+    return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }, [state.templates]);
+
   const settings = useMemo(() => mergeUserSettings(state), [state]);
 
   const patchSettings = (partial: Partial<UserSettings>) => {
@@ -229,6 +240,43 @@ export function App(): ReactElement {
     setPresetBanner(preset.name);
     const first = exerciseIds[0];
     if (first) setHistoryExerciseId((h) => h || first);
+  };
+
+  const loadTemplate = (template: WorkoutTemplate) => {
+    const blocks = template.blocks
+      .filter((b) => state.exercises.some((e) => e.id === b.exerciseId))
+      .map((b) => ({ exerciseId: b.exerciseId, sets: draftRowsFromRepsTargets(b.reps) }));
+    if (blocks.length === 0) {
+      window.alert(
+        "Could not load that template — none of its exercises are still in your catalog.",
+      );
+      return;
+    }
+    setDraftBlocks(blocks);
+    setLogNotes("");
+    setPresetBanner(`Template loaded: ${template.name}`);
+    const first = blocks[0]?.exerciseId;
+    if (first) setHistoryExerciseId((h) => h || first);
+  };
+
+  const removeTemplate = (templateId: string) => {
+    persist((prev) => ({
+      ...prev,
+      templates: (prev.templates ?? []).filter((t) => t.id !== templateId),
+    }));
+  };
+
+  const saveDraftAsTemplate = () => {
+    const suggested = presetBanner?.replace(/^Template loaded:\s*/i, "").trim() || "My template";
+    const name = window.prompt("Template name", suggested);
+    if (name === null) return;
+    const result = buildTemplateFromDraft({ name, exercises: state.exercises, draftBlocks });
+    if (!result.ok) {
+      window.alert(result.error);
+      return;
+    }
+    persist((prev) => ({ ...prev, templates: [...(prev.templates ?? []), result.template] }));
+    setPresetBanner(`Template saved: ${result.template.name}`);
   };
 
   const clearPresetBanner = () => {
@@ -458,6 +506,61 @@ export function App(): ReactElement {
               </li>
             ))}
           </ul>
+        </section>
+
+        <section className="card" aria-labelledby="templates-heading">
+          <div className="card-title-row">
+            <h2 id="templates-heading" className="card-title">
+              Templates
+            </h2>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={saveDraftAsTemplate}
+              disabled={exercisesSorted.length === 0}
+            >
+              Save current as template
+            </button>
+          </div>
+          <p className="preset-intro">
+            Templates are your own reusable workouts. Loading one fills exercises and set rep
+            targets, leaving weights blank.
+          </p>
+          {templatesSorted.length === 0 ? (
+            <p className="empty">
+              No templates yet. Build a workout below, then “Save current as template”.
+            </p>
+          ) : (
+            <ul className="preset-list">
+              {templatesSorted.map((t) => (
+                <li key={t.id} className="preset-card">
+                  <div className="preset-card-main">
+                    <div className="preset-card-title">{t.name}</div>
+                    <p className="preset-card-meta">
+                      {t.blocks.length} exercises ·{" "}
+                      {t.blocks.map((b) => `${b.reps.length}×${b.reps[0] ?? "?"}`).join(", ")}
+                    </p>
+                  </div>
+                  <div className="preset-card-actions">
+                    <button
+                      type="button"
+                      className="btn btn-primary"
+                      onClick={() => loadTemplate(t)}
+                    >
+                      Load template
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-ghost"
+                      onClick={() => removeTemplate(t.id)}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
         </section>
 
         <section className="card" aria-labelledby="exercise-heading">

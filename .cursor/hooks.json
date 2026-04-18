@@ -15,6 +15,10 @@
       {
         "command": ".cursor/hooks/guard-secrets.sh",
         "matcher": "UserPromptSubmit"
+      },
+      {
+        "command": ".cursor/hooks/stage-on-caveman-commit.sh",
+        "matcher": "UserPromptSubmit"
       }
     ]
   }
