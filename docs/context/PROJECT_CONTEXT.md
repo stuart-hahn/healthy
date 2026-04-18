@@ -15,6 +15,7 @@
 - **Domain logic**: **Pure functions** in `src/lib/progression/` (linear suggestion, `pickTopSet`, `linearHintUiForExercise`); `src/lib/settings.ts` for defaults and normalization; session helpers in `src/lib/sessions.ts` (`mostRecentSession`, etc.); **post-save** “vs last time” per lift via `buildSessionSaveSummary` in `src/lib/sessionSaveSummary.ts`; **top-set “best”** copy via `evaluateTopSetPr` in `src/lib/topSetPr.ts` (heaviest single-set weight in history — not a competition standard). **Log form**: “Repeat last session” copies the latest `TrainingSession` into the draft.
 - **Copy / safety**: Header and footer state that the app is **not medical advice**; per-block suggestions labeled **algorithmic**.
 - **Presets**: Bundled in `src/data/presets.ts` (`BUNDLED_PRESETS`). Loading a preset merges exercises into the catalog (by normalized name) and prefills **all movements** in the session form; user enters weights and **Save session** once to store **one** `TrainingSession` with multiple **blocks**.
+- **Session history UI**: **Session history** card lists all `TrainingSession`s newest-first (`sortSessionsByNewestFirst` in `src/lib/sessions.ts`); expand for full blocks/sets, **Use in log form** copies into the draft, **Remove** deletes. **History by exercise** still filters by one lift.
 - **Boundaries**: No backend required for core MVP; future sync/API is opt-in and ADR’d.
 
 ## Conventions

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { TrainingSession } from "../types/domain";
-import { mostRecentSession } from "./sessions";
+import { mostRecentSession, sortSessionsByNewestFirst } from "./sessions";
 
 describe("mostRecentSession", () => {
   it("returns null for empty", () => {
@@ -45,5 +45,38 @@ describe("mostRecentSession", () => {
       },
     ];
     expect(mostRecentSession(sessions)?.id).toBe("b");
+  });
+});
+
+describe("sortSessionsByNewestFirst", () => {
+  it("orders by date then createdAt", () => {
+    const sessions: TrainingSession[] = [
+      {
+        id: "old",
+        date: "2026-01-01",
+        createdAt: "2026-01-01T12:00:00.000Z",
+        notes: "",
+        blocks: [],
+      },
+      {
+        id: "newer-day",
+        date: "2026-01-10",
+        createdAt: "2026-01-10T08:00:00.000Z",
+        notes: "",
+        blocks: [],
+      },
+      {
+        id: "same-day-later",
+        date: "2026-01-10",
+        createdAt: "2026-01-10T20:00:00.000Z",
+        notes: "",
+        blocks: [],
+      },
+    ];
+    expect(sortSessionsByNewestFirst(sessions).map((s) => s.id)).toEqual([
+      "same-day-later",
+      "newer-day",
+      "old",
+    ]);
   });
 });

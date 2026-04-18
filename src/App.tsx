@@ -4,7 +4,12 @@ import { linearHintUiForExercise } from "./lib/progression/hintForExercise";
 import { buildSessionSaveSummary, type SessionSaveComparison } from "./lib/sessionSaveSummary";
 import { applyPresetToCatalog } from "./lib/presets/applyPreset";
 import { clampUserSettings, mergeUserSettings } from "./lib/settings";
-import { blockForExercise, mostRecentSession, sessionsForExercise } from "./lib/sessions";
+import {
+  blockForExercise,
+  mostRecentSession,
+  sessionsForExercise,
+  sortSessionsByNewestFirst,
+} from "./lib/sessions";
 import { buildTemplateFromDraft } from "./lib/templates/templateFromDraft";
 import { formatTopSetPrNote } from "./lib/topSetPr";
 import { buildExportEnvelope, parseImportedAppState } from "./storage/importExport";
@@ -90,6 +95,14 @@ function buildSessionBlocksFromDraft(
   return blocks;
 }
 
+function sessionExerciseSummary(session: TrainingSession): string {
+  if (session.blocks.length === 0) return "No exercises";
+  const names = session.blocks.map((b) => b.exerciseName);
+  const head = names.slice(0, 3).join(", ");
+  const more = names.length > 3 ? ` +${names.length - 3}` : "";
+  return head + more;
+}
+
 function volumeDeltaLabel(before: number, after: number, unit: UserSettings["weightUnit"]): string {
   const unitLabel = unit === "kg" ? "kg·reps" : "lb·reps";
   const d = after - before;
@@ -135,6 +148,9 @@ export function App(): ReactElement {
   const [draftBlocks, setDraftBlocks] = useState<DraftBlock[]>([emptyDraftBlock()]);
 
   const [historyExerciseId, setHistoryExerciseId] = useState("");
+
+  /** Session browser: which training day row is expanded. */
+  const [sessionBrowserExpandedId, setSessionBrowserExpandedId] = useState<string | null>(null);
 
   /** Shown after loading a preset until save or clear. */
   const [presetBanner, setPresetBanner] = useState<string | null>(null);
@@ -338,6 +354,11 @@ export function App(): ReactElement {
     return sessionsForExercise(state.sessions, historyExerciseId);
   }, [state.sessions, historyExerciseId]);
 
+  const sessionsNewestFirst = useMemo(
+    () => sortSessionsByNewestFirst(state.sessions),
+    [state.sessions],
+  );
+
   const lastLoggedSession = useMemo(() => mostRecentSession(state.sessions), [state.sessions]);
 
   const canRepeatLastSession = useMemo(() => {
@@ -345,21 +366,34 @@ export function App(): ReactElement {
     return lastLoggedSession.blocks.some((b) => state.exercises.some((e) => e.id === b.exerciseId));
   }, [lastLoggedSession, state.exercises]);
 
-  const repeatLastSession = () => {
-    const last = mostRecentSession(state.sessions);
-    if (!last?.blocks.length) return;
-    const next = draftBlocksFromSession(last, state.exercises);
+  const applySessionToLogForm = (
+    session: TrainingSession,
+    opts: { dateMode: "session" | "today" },
+  ) => {
+    if (!session.blocks.length) return;
+    const next = draftBlocksFromSession(session, state.exercises);
     if (next.length === 0) {
       window.alert(
-        "Could not repeat that session — none of its exercises are still in your catalog.",
+        "Could not load that session — none of its exercises are still in your catalog.",
       );
       return;
     }
     setDraftBlocks(next);
-    setLogDate(new Date().toISOString().slice(0, 10));
-    setPresetBanner(`Repeated from ${last.date}`);
+    setLogDate(opts.dateMode === "session" ? session.date : new Date().toISOString().slice(0, 10));
+    setLogNotes("");
+    setPresetBanner(
+      opts.dateMode === "session"
+        ? `Editing copy of ${session.date} (change date before save if needed)`
+        : `Repeated from ${session.date}`,
+    );
     const fid = next[0]?.exerciseId;
     if (fid) setHistoryExerciseId((h) => h || fid);
+  };
+
+  const repeatLastSession = () => {
+    const last = mostRecentSession(state.sessions);
+    if (!last?.blocks.length) return;
+    applySessionToLogForm(last, { dateMode: "today" });
   };
 
   const updateDraftSet = (
@@ -832,6 +866,93 @@ export function App(): ReactElement {
                 </button>
               </div>
             </form>
+          )}
+        </section>
+
+        <section className="card" aria-labelledby="session-browser-heading">
+          <h2 id="session-browser-heading" className="card-title">
+            Session history
+          </h2>
+          <p className="preset-intro">
+            Newest first. Open a day to see every lift and set. Use in log form copies weights and
+            reps into the logger (change the date if you are re-logging an old day).
+          </p>
+          {sessionsNewestFirst.length === 0 ? (
+            <p className="empty">No logged sessions yet.</p>
+          ) : (
+            <ul className="list session-browser-list">
+              {sessionsNewestFirst.map((s) => {
+                const expanded = sessionBrowserExpandedId === s.id;
+                const detailId = `session-detail-${s.id}`;
+                return (
+                  <li key={s.id} className="session-browser-item">
+                    <div className="row session-browser-row">
+                      <div className="row-main">
+                        <div className="row-title">{s.date}</div>
+                        <div className="row-meta">
+                          {s.blocks.length} exercise{s.blocks.length === 1 ? "" : "s"} ·{" "}
+                          {sessionExerciseSummary(s)}
+                        </div>
+                        {s.notes && !expanded ? <p className="row-notes">{s.notes}</p> : null}
+                      </div>
+                      <div className="session-browser-actions">
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          aria-expanded={expanded}
+                          aria-controls={detailId}
+                          onClick={() => setSessionBrowserExpandedId(expanded ? null : s.id)}
+                        >
+                          {expanded ? "Hide" : "Details"}
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-secondary"
+                          onClick={() => applySessionToLogForm(s, { dateMode: "session" })}
+                        >
+                          Use in log form
+                        </button>
+                        <button
+                          type="button"
+                          className="btn btn-danger"
+                          onClick={() => {
+                            removeSession(s.id);
+                            if (sessionBrowserExpandedId === s.id) {
+                              setSessionBrowserExpandedId(null);
+                            }
+                          }}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                    {expanded ? (
+                      <div
+                        id={detailId}
+                        className="session-browser-detail"
+                        role="region"
+                        aria-label={`Details for ${s.date}`}
+                      >
+                        {s.notes ? <p className="session-browser-notes">{s.notes}</p> : null}
+                        {s.blocks.map((b) => (
+                          <div key={b.id} className="session-browser-block">
+                            <h3 className="session-browser-block-title">{b.exerciseName}</h3>
+                            <ul className="session-browser-sets">
+                              {b.sets.map((row) => (
+                                <li key={row.id}>
+                                  {row.weight} {settings.weightUnit} × {row.reps}
+                                  {row.rpe !== undefined ? ` @RPE ${row.rpe}` : ""}
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </li>
+                );
+              })}
+            </ul>
           )}
         </section>
 

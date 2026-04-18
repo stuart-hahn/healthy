@@ -20,5 +20,6 @@ describe("App", () => {
     expect(screen.getByRole("heading", { name: /presets/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /exercises/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /training settings/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /session history/i })).toBeInTheDocument();
   });
 });
