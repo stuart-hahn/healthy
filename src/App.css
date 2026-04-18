@@ -634,6 +634,33 @@
   margin-top: 0;
 }
 
+.save-summary-quick {
+  margin: 0.75rem 0 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.save-summary-next {
+  margin-top: 0.65rem;
+}
+
+.save-summary-next-label {
+  margin: 0 0 0.35rem;
+  font-size: 0.82rem;
+  font-weight: 600;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.save-summary-item-actions {
+  margin-top: 0.5rem;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
 .save-summary-list {
   margin: 0.5rem 0 0;
   padding-left: 1.15rem;

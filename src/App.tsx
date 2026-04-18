@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactElement } from "react";
 import { BUNDLED_PRESETS } from "./data/presets";
-import { linearHintUiForExercise } from "./lib/progression/hintForExercise";
+import { linearHintUiForExercise, type LinearHintUi } from "./lib/progression/hintForExercise";
 import { buildSessionSaveSummary, type SessionSaveComparison } from "./lib/sessionSaveSummary";
 import { applyPresetToCatalog } from "./lib/presets/applyPreset";
 import { clampUserSettings, mergeUserSettings } from "./lib/settings";
@@ -185,10 +185,13 @@ export function App(): ReactElement {
   /** After saving a session: vs last time for each lift (dismissible). */
   const [sessionSaveBanner, setSessionSaveBanner] = useState<{
     date: string;
+    sessionId: string;
     comparisons: SessionSaveComparison[];
   } | null>(null);
 
   const backupFileInputRef = useRef<HTMLInputElement>(null);
+  const sessionHistorySectionRef = useRef<HTMLElement | null>(null);
+  const historyByExerciseSectionRef = useRef<HTMLElement | null>(null);
 
   type RestPhase = "idle" | "running" | "paused" | "done";
   const [restPhase, setRestPhase] = useState<RestPhase>("idle");
@@ -344,6 +347,36 @@ export function App(): ReactElement {
     [draftBlocks, state.sessions, settings],
   );
 
+  /** Next-session linear hints after save (history includes the session just logged). */
+  const sessionSaveNextHints = useMemo(() => {
+    if (!sessionSaveBanner) return new Map<string, LinearHintUi | null>();
+    const m = new Map<string, LinearHintUi | null>();
+    for (const c of sessionSaveBanner.comparisons) {
+      m.set(c.exerciseId, linearHintUiForExercise(c.exerciseId, state.sessions, settings));
+    }
+    return m;
+  }, [sessionSaveBanner, state.sessions, settings]);
+
+  const scrollToSection = useCallback((el: HTMLElement | null) => {
+    window.setTimeout(() => {
+      el?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  }, []);
+
+  const showSavedSessionInHistory = useCallback(() => {
+    if (!sessionSaveBanner) return;
+    setSessionBrowserExpandedId(sessionSaveBanner.sessionId);
+    scrollToSection(sessionHistorySectionRef.current);
+  }, [sessionSaveBanner, scrollToSection]);
+
+  const showLiftHistoryAndTrends = useCallback(
+    (exerciseId: string) => {
+      setHistoryExerciseId(exerciseId);
+      scrollToSection(historyByExerciseSectionRef.current);
+    },
+    [scrollToSection],
+  );
+
   const loadPreset = (preset: WorkoutPresetDefinition) => {
     const { next, exerciseIds } = applyPresetToCatalog(state, preset);
     if (exerciseIds.length === 0 || exerciseIds.length !== preset.movements.length) return;
@@ -438,7 +471,7 @@ export function App(): ReactElement {
       blocks,
     };
     persist((prev) => ({ ...prev, sessions: [...prev.sessions, newSession] }));
-    setSessionSaveBanner({ date: logDate, comparisons });
+    setSessionSaveBanner({ date: logDate, sessionId: newSession.id, comparisons });
     setLogNotes("");
     setDraftBlocks([emptyDraftBlock()]);
     setPresetBanner(null);
@@ -603,31 +636,62 @@ export function App(): ReactElement {
             <p className="preset-intro save-summary-intro">
               Compared to your last logged session for each lift (volume = weight × reps summed).
               “Best” uses the heaviest <strong>single-set weight</strong> in your history — not a
-              competition standard.
+              competition standard. Next-session targets use the same linear rule as the log form.
             </p>
+            <div className="save-summary-quick">
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={showSavedSessionInHistory}
+              >
+                Open in session history
+              </button>
+            </div>
             <ul className="save-summary-list">
-              {sessionSaveBanner.comparisons.map((c, idx) => (
-                <li key={`${c.exerciseId}-${idx}`}>
-                  <div>
-                    <strong>{c.exerciseName}</strong>
-                    {!c.prior ? (
-                      <span> — first log for this lift here; nothing to compare yet.</span>
-                    ) : (
-                      <span>
-                        {" "}
-                        vs {c.priorDate}: volume {c.prior.volume} → {c.current.volume} (
-                        {volumeDeltaLabel(c.prior.volume, c.current.volume, settings.weightUnit)})
-                        {" · "}
-                        top set {c.prior.topWeight}×{c.prior.topReps} → {c.current.topWeight}×
-                        {c.current.topReps}
-                      </span>
-                    )}
-                  </div>
-                  <p className="pr-note">
-                    {formatTopSetPrNote(c.topSetPr, c.current.topWeight, settings.weightUnit)}
-                  </p>
-                </li>
-              ))}
+              {sessionSaveBanner.comparisons.map((c, idx) => {
+                const nextHint = sessionSaveNextHints.get(c.exerciseId) ?? null;
+                return (
+                  <li key={`${c.exerciseId}-${idx}`}>
+                    <div>
+                      <strong>{c.exerciseName}</strong>
+                      {!c.prior ? (
+                        <span> — first log for this lift here; nothing to compare yet.</span>
+                      ) : (
+                        <span>
+                          {" "}
+                          vs {c.priorDate}: volume {c.prior.volume} → {c.current.volume} (
+                          {volumeDeltaLabel(c.prior.volume, c.current.volume, settings.weightUnit)})
+                          {" · "}
+                          top set {c.prior.topWeight}×{c.prior.topReps} → {c.current.topWeight}×
+                          {c.current.topReps}
+                        </span>
+                      )}
+                    </div>
+                    <p className="pr-note">
+                      {formatTopSetPrNote(c.topSetPr, c.current.topWeight, settings.weightUnit)}
+                    </p>
+                    {nextHint ? (
+                      <div className="hint hint-block save-summary-next">
+                        <p className="save-summary-next-label">Next session (algorithmic)</p>
+                        <p className="hint-primary" role="status">
+                          <strong>Suggested · from your history (not medical advice):</strong>{" "}
+                          {nextHint.primary}
+                        </p>
+                        <p className="hint-rule">{nextHint.rule}</p>
+                      </div>
+                    ) : null}
+                    <div className="save-summary-item-actions">
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => showLiftHistoryAndTrends(c.exerciseId)}
+                      >
+                        Lift history & trends
+                      </button>
+                    </div>
+                  </li>
+                );
+              })}
             </ul>
           </section>
         ) : null}
@@ -1085,7 +1149,11 @@ export function App(): ReactElement {
           )}
         </section>
 
-        <section className="card" aria-labelledby="session-browser-heading">
+        <section
+          ref={sessionHistorySectionRef}
+          className="card"
+          aria-labelledby="session-browser-heading"
+        >
           <h2 id="session-browser-heading" className="card-title">
             Session history
           </h2>
@@ -1172,7 +1240,11 @@ export function App(): ReactElement {
           )}
         </section>
 
-        <section className="card" aria-labelledby="history-heading">
+        <section
+          ref={historyByExerciseSectionRef}
+          className="card"
+          aria-labelledby="history-heading"
+        >
           <h2 id="history-heading" className="card-title">
             History by exercise
           </h2>

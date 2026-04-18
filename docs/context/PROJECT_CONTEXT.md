@@ -18,6 +18,7 @@
 - **Session history UI**: **Session history** card lists all `TrainingSession`s newest-first (`sortSessionsByNewestFirst` in `src/lib/sessions.ts`); expand for full blocks/sets, **Use in log form** copies into the draft, **Remove** deletes. **History by exercise** still filters by one lift.
 - **Lift trends (MVP)**: Under **History by exercise**, after picking a lift: table of last **12** logs with **volume** (Σ weight×reps for that block), **top set**, **set count**, plus inline **SVG sparkline** (older → newer). Logic in `src/lib/liftTrends.ts`.
 - **Rest timer**: Optional countdown in **Log session** (presets 60–180s, custom 10–600s, Start / Pause / Resume / Reset / Skip). Default duration stored in `localStorage` key `workout-tracker:rest-seconds-default`. Completion uses short **vibration** when supported (`navigator.vibrate`). Display helper `formatSecondsAsMmSs` in `src/lib/restTimerFormat.ts`.
+- **Post-save summary**: After **Save session**, a dismissible card shows **vs last time** per lift, **algorithmic next-session** linear hints (same rules as the log form), **Open in session history** (expands that day and scrolls), and per-lift **Lift history & trends** (selects the exercise and scrolls to trends).
 - **Boundaries**: No backend required for core MVP; future sync/API is opt-in and ADR’d.
 
 ## Conventions
