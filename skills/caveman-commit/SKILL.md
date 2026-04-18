@@ -67,23 +67,23 @@ Diff: breaking API change
 
 Always include body for: breaking changes, security fixes, data migrations, anything reverting a prior commit. Never compress these into subject-only — future debuggers need the context.
 
-## `git push` (repo hook)
+## `git push` (this repo)
 
-**`pre-push`** runs `git add -A`, then **blocks** push if anything is still uncommitted vs `HEAD`. Printed steps point here and **`/caveman-commit`**. The hook **cannot** execute Cursor slash commands—generate the message in Cursor, then `git commit`, then push again. See `docs/context/GIT_WORKFLOW.md` (`SKIP_CAVEMAN_STAGED_CHECK=1` to bypass).
+**`pre-push`** runs **`scripts/husky-pre-push-auto-commit.sh`**: **`git add -A`**, then **`git commit`** with **`npx tsx scripts/print-auto-commit-message.ts`** (path heuristics, not AI; see **`src/lib/git/autoCommitMessage.ts`**) if anything is still uncommitted vs **`HEAD`**. Override for one push: **`COMMIT_MSG='feat: …' git push`**. Bypass add+commit: **`SKIP_CAVEMAN_STAGED_CHECK=1 git push`**. See **`docs/context/GIT_WORKFLOW.md`**.
 
-## Staging when you type `/caveman-commit` (this repo)
+## `/caveman-commit` staging (optional)
 
-**Cursor project hook** `.cursor/hooks/stage-on-caveman-commit.sh`: on prompt submit, if payload contains **`/caveman-commit`**, runs **`git add -A`** at repo root so **`git commit`** / paste message works immediately. Config: `.cursor/hooks.json` → `beforeSubmitPrompt`. Copy **`skills/caveman-commit/`** to `~/.agents/skills/caveman-commit/` for the slash command; hook lives in the repo under **`.cursor/`**.
+**Cursor hook** `.cursor/hooks/stage-on-caveman-commit.sh`: prompt contains **`/caveman-commit`** → **`git add -A`**. Redundant if you only ship via **`git push`** (push already stages).
 
 ## After code changes (agents)
 
-When implementation finishes and the working tree has uncommitted changes (or the user is about to commit), **read this skill** and output:
+When the user wants a **hand-crafted** subject (finer than auto-heuristic), **read this skill** and output:
 
-1. A fenced **commit message** ready to paste, or
-2. One line: `npm run ship -- 'type(scope): subject'` (see `docs/context/GIT_WORKFLOW.md`)
+1. Fenced message for **`COMMIT_MSG='…' git push`**, or
+2. **`npm run ship -- 'type(scope): subject'`**
 
-unless the user asked not to commit. This skill does **not** run `git commit` by itself.
+Default repo flow: user runs **`git push`** only; hook commits without this skill.
 
 ## Boundaries
 
-Only generates the commit message. Does not run `git commit`, does not amend unless the user asks. **Cursor** may run **`git add -A`** when you send **`/caveman-commit`** (project hook). **Husky `pre-push`** runs **`git add -A`** then blocks push until you commit—see above. Output the message as a code block ready to paste. "stop caveman-commit" or "normal mode": revert to verbose commit style.
+Only generates the commit message text. Does not run **`git commit`** or **`git push`**. Output as fenced block ready to paste into **`COMMIT_MSG`** or **`ship`**. "stop caveman-commit" / "normal mode": revert to verbose commit style.

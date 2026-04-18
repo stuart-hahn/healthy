@@ -1,6 +1,6 @@
 #!/usr/bin/env sh
 set -e
-sh scripts/husky-pre-push-stage-check.sh
+sh scripts/husky-pre-push-auto-commit.sh
 npm run lint
 npm run typecheck
 npm test

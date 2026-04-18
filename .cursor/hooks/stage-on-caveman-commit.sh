@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# When user sends /caveman-commit, stage everything so the next git commit is ready.
-# Pairs with docs/context/GIT_WORKFLOW.md and husky pre-push (still requires commit before push).
+# When user sends /caveman-commit, stage everything (optional; git push pre-hook also git add -A).
+# Pairs with docs/context/GIT_WORKFLOW.md.
 set +e
 payload="$(cat)"
 

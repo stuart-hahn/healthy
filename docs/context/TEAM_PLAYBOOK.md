@@ -38,4 +38,4 @@
 | `skills/nextpr/SKILL.md`       | **/nextpr** — option list before next implementation slice |
 | `.cursor/rules/`               | Cursor Rules (scoped + always-on)                          |
 | `.cursor/hooks/`               | Format/lint automation on edit                             |
-| `docs/context/GIT_WORKFLOW.md` | Commit style (caveman-commit), `npm run ship`              |
+| `docs/context/GIT_WORKFLOW.md` | `git push` auto-commit, caveman-commit, `npm run ship`     |

@@ -1,50 +1,50 @@
 # Git workflow — commit + GitHub
 
-## Message style (required)
+## Default: `git push` does everything
 
-Follow **`skills/caveman-commit/SKILL.md`**: Conventional Commits, imperative subject, terse; body only for why, breaking changes, or migrations.
+**`pre-push`** runs **`scripts/husky-pre-push-auto-commit.sh`** first:
 
-**Agents**: Read that skill for **every** suggested message—including after implementing code, when the user says **`/caveman-commit`**, or when staging—so caveman-style lines stay the default. Generate the subject (and body if needed) before `git commit` / `npm run ship`.
+1. **`git add -A`**
+2. If the index still differs from **`HEAD`**, **`git commit -m "…"`** using:
+   - **`COMMIT_MSG`** env var if set, else
+   - **`npx tsx scripts/print-auto-commit-message.ts`** — deterministic Conventional-Commits-style subject from **staged paths** (not AI; logic in `src/lib/git/autoCommitMessage.ts`, tests in `src/lib/git/autoCommitMessage.test.ts`)
+3. Then **`npm run lint`**, **`npm run typecheck`**, **`npm test`**; push proceeds if all pass.
 
-## `/caveman-commit` + staging (Cursor)
+**`pre-commit`** (lint-staged) still runs on that auto-commit.
 
-This repo’s **project hook** `.cursor/hooks/stage-on-caveman-commit.sh` runs on **`beforeSubmitPrompt`**: if the submitted user prompt contains the literal **`/caveman-commit`**, it runs **`git add -A`** at the repo root. Then paste the generated message and run **`git commit -m '…'`** (or **`npm run ship -- '…'`**, which also stages). Reload Cursor after changing `.cursor/hooks.json` if the hook does not fire.
+### Hand-crafted messages (optional)
 
-## One-shot: commit and push
+For a specific subject on this push only:
 
-Requires **`origin`** pointing at GitHub (see root `README.md`).
+```bash
+COMMIT_MSG='feat(ui): add deload toggle' git push
+```
+
+**`/caveman-commit`** in Cursor still works for **human-written** messages you paste into **`COMMIT_MSG=… git push`** or into a manual `git commit` if you disable automation (bypass below).
+
+### `/caveman-commit` + early staging (Cursor)
+
+Project hook **`.cursor/hooks/stage-on-caveman-commit.sh`**: submitting a prompt that contains **`/caveman-commit`** runs **`git add -A`**. Optional; **`git push`** already stages everything.
+
+## One-shot: commit and push (explicit message)
 
 ```bash
 npm run ship -- 'feat(ui): add session form'
 ```
 
-Runs: `git add -A` → `git commit -m "…"` → `git push`. **`pre-commit`** runs lint-staged; **`pre-push`** runs full lint, typecheck, and tests.
+Runs: **`git add -A`** → **`git commit`** → **`git push`**. Use when you want a guaranteed message without **`COMMIT_MSG`**.
 
-If the tree is clean, `ship` exits with an error (nothing to do).
+If the tree is clean, **`ship`** exits with an error (nothing to do).
 
-## `git push` (pre-push)
+## Bypass automation
 
-**`pre-push`** runs `scripts/husky-pre-push-stage-check.sh` first:
+- **Push without committing local WIP** (only commits already on `HEAD` reach the remote):  
+  **`SKIP_CAVEMAN_STAGED_CHECK=1 git push`**
+- **Disable all Husky hooks for one command**: **`HUSKY=0 git push`**
 
-1. **`git add -A`** — stages all changes (tracked + untracked).
-2. If the index still differs from **`HEAD`** (uncommitted work), the hook **exits with an error** and prints steps: use **`/caveman-commit`** in Cursor (or `skills/caveman-commit/SKILL.md`), then **`git commit`**, then push again.
+## Message style (when you write it yourself)
 
-**`/caveman-commit` cannot run inside git hooks** — Cursor skills need the IDE/agent. **Husky `pre-push`** only stages and enforces “commit before push.” **Cursor** may stage earlier when you actually send **`/caveman-commit`** (see above).
-
-**Bypass** (e.g. push without committing local WIP): `SKIP_CAVEMAN_STAGED_CHECK=1 git push`  
-**Husky off entirely**: `HUSKY=0 git push`
-
-## Push only (commits already made)
-
-```bash
-git push
-```
-
-## What is not automated
-
-- **No auto-commit on file save** — avoids junk history and half-broken commits.
-- Hooks do **not** invoke the AI for commit text; **`/caveman-commit`** stays a Cursor step before `git commit`.
-- Agents should still **propose** caveman lines after substantive edits (`skills/caveman-commit/SKILL.md`).
+Follow **`skills/caveman-commit/SKILL.md`**: Conventional Commits, imperative subject, terse; body only for why, breaking changes, or migrations.
 
 ## CI
 
