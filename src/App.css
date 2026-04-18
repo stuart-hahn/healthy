@@ -455,6 +455,59 @@
   color: var(--muted);
 }
 
+.lift-trends {
+  margin-bottom: 1rem;
+}
+
+.lift-trends-intro {
+  margin-bottom: 0.65rem;
+}
+
+.lift-trends-spark-wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-bottom: 0.65rem;
+}
+
+.lift-trends-sparkline {
+  display: block;
+  width: 7.5rem;
+  height: 2.25rem;
+  color: var(--text);
+  opacity: 0.88;
+}
+
+.lift-trends-spark-caption {
+  font-size: 0.75rem;
+  color: var(--muted);
+}
+
+.table-wrap {
+  overflow-x: auto;
+  margin-bottom: 0.5rem;
+}
+
+.lift-trends-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.lift-trends-table th,
+.lift-trends-table td {
+  text-align: left;
+  padding: 0.4rem 0.5rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.lift-trends-table th {
+  font-weight: 600;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
 .backup-actions {
   display: flex;
   flex-wrap: wrap;

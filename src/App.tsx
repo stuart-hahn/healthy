@@ -11,6 +11,12 @@ import {
   sortSessionsByNewestFirst,
 } from "./lib/sessions";
 import { buildTemplateFromDraft } from "./lib/templates/templateFromDraft";
+import {
+  buildLiftTrendRows,
+  buildSparklinePolylinePoints,
+  liftTrendVolumesChronological,
+  LIFT_TREND_MAX_ROWS,
+} from "./lib/liftTrends";
 import { formatTopSetPrNote } from "./lib/topSetPr";
 import { buildExportEnvelope, parseImportedAppState } from "./storage/importExport";
 import { loadAppState, saveAppState } from "./storage/state";
@@ -353,6 +359,21 @@ export function App(): ReactElement {
     if (!historyExerciseId) return [];
     return sessionsForExercise(state.sessions, historyExerciseId);
   }, [state.sessions, historyExerciseId]);
+
+  const liftTrendRows = useMemo(() => {
+    if (!historyExerciseId) return [];
+    return buildLiftTrendRows(state.sessions, historyExerciseId);
+  }, [state.sessions, historyExerciseId]);
+
+  const liftTrendVolumesChrono = useMemo(
+    () => liftTrendVolumesChronological(liftTrendRows),
+    [liftTrendRows],
+  );
+
+  const liftTrendSparklinePoints = useMemo(() => {
+    if (liftTrendVolumesChrono.length < 2) return "";
+    return buildSparklinePolylinePoints(liftTrendVolumesChrono, 120, 36);
+  }, [liftTrendVolumesChrono]);
 
   const sessionsNewestFirst = useMemo(
     () => sortSessionsByNewestFirst(state.sessions),
@@ -984,34 +1005,90 @@ export function App(): ReactElement {
               ) : historySessions.length === 0 ? (
                 <p className="empty">No sessions for this exercise yet.</p>
               ) : (
-                <ul className="list">
-                  {historySessions.map((s) => {
-                    const block = blockForExercise(s, historyExerciseId);
-                    const setsText =
-                      block?.sets.map((x) => `${x.weight}×${x.reps}`).join(", ") ?? "—";
-                    const multi =
-                      s.blocks.length > 1 ? ` · ${s.blocks.length} exercises in session` : "";
-                    return (
-                      <li key={s.id} className="row">
-                        <div className="row-main">
-                          <div className="row-title">
-                            {s.date}
-                            {multi ? <span className="row-badge">{multi}</span> : null}
+                <>
+                  {liftTrendRows.length > 0 ? (
+                    <div className="lift-trends">
+                      <p className="preset-intro lift-trends-intro">
+                        Last up to {LIFT_TREND_MAX_ROWS} logs · volume = Σ(weight × reps) for this
+                        lift that day ({settings.weightUnit === "kg" ? "kg·reps" : "lb·reps"}). For
+                        review only — not medical advice.
+                      </p>
+                      <div className="lift-trends-spark-wrap">
+                        {liftTrendVolumesChrono.length >= 2 ? (
+                          <svg className="lift-trends-sparkline" viewBox="0 0 120 36" aria-hidden>
+                            <polyline
+                              fill="none"
+                              stroke="currentColor"
+                              strokeWidth="1.75"
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              points={liftTrendSparklinePoints}
+                            />
+                          </svg>
+                        ) : liftTrendVolumesChrono.length === 1 ? (
+                          <svg className="lift-trends-sparkline" viewBox="0 0 120 36" aria-hidden>
+                            <circle cx="60" cy="18" r="3" fill="currentColor" />
+                          </svg>
+                        ) : null}
+                        <span className="lift-trends-spark-caption">Older ← → Newer</span>
+                      </div>
+                      <div className="table-wrap">
+                        <table className="lift-trends-table">
+                          <thead>
+                            <tr>
+                              <th scope="col">Date</th>
+                              <th scope="col">Volume</th>
+                              <th scope="col">Top set</th>
+                              <th scope="col">Sets</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {liftTrendRows.map((r) => (
+                              <tr key={r.sessionId}>
+                                <td>{r.date}</td>
+                                <td>
+                                  {r.volume} {settings.weightUnit === "kg" ? "kg·reps" : "lb·reps"}
+                                </td>
+                                <td>
+                                  {r.topWeight} {settings.weightUnit} × {r.topReps}
+                                </td>
+                                <td>{r.setCount}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  ) : null}
+                  <ul className="list">
+                    {historySessions.map((s) => {
+                      const block = blockForExercise(s, historyExerciseId);
+                      const setsText =
+                        block?.sets.map((x) => `${x.weight}×${x.reps}`).join(", ") ?? "—";
+                      const multi =
+                        s.blocks.length > 1 ? ` · ${s.blocks.length} exercises in session` : "";
+                      return (
+                        <li key={s.id} className="row">
+                          <div className="row-main">
+                            <div className="row-title">
+                              {s.date}
+                              {multi ? <span className="row-badge">{multi}</span> : null}
+                            </div>
+                            <div className="row-meta">{setsText}</div>
+                            {s.notes ? <p className="row-notes">{s.notes}</p> : null}
                           </div>
-                          <div className="row-meta">{setsText}</div>
-                          {s.notes ? <p className="row-notes">{s.notes}</p> : null}
-                        </div>
-                        <button
-                          type="button"
-                          className="btn btn-danger"
-                          onClick={() => removeSession(s.id)}
-                        >
-                          Remove
-                        </button>
-                      </li>
-                    );
-                  })}
-                </ul>
+                          <button
+                            type="button"
+                            className="btn btn-danger"
+                            onClick={() => removeSession(s.id)}
+                          >
+                            Remove
+                          </button>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </>
               )}
             </>
           )}
