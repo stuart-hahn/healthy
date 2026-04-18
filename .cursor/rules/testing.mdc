@@ -1,0 +1,11 @@
+---
+description: Testing expectations for automated and AI-assisted work
+globs: **/*.{test,spec}.{ts,tsx,js,jsx}
+alwaysApply: false
+---
+
+# Testing
+
+- New logic gets unit tests colocated or under `src/**/__tests__/`.
+- Prefer fast, deterministic tests; mock time and I/O at boundaries.
+- Name tests after behavior (`returns X when Y`), not after implementation details.

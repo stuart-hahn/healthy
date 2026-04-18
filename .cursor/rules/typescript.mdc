@@ -1,0 +1,12 @@
+---
+description: TypeScript defaults for this repository
+globs: **/*.{ts,tsx}
+alwaysApply: false
+---
+
+# TypeScript
+
+- Prefer explicit types at module boundaries; infer locals.
+- Avoid `any`; use `unknown` + narrowing.
+- Errors: use typed Results or narrow catch to `unknown` before use.
+- Keep public APIs stable; mark experimental code with `@deprecated` or a `experimental/` path.

@@ -1,0 +1,17 @@
+{
+  "version": 1,
+  "hooks": {
+    "afterFileEdit": [
+      {
+        "command": ".cursor/hooks/format-after-edit.sh",
+        "matcher": "Write|TabWrite"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": ".cursor/hooks/guard-secrets.sh",
+        "matcher": "UserPromptSubmit"
+      }
+    ]
+  }
+}
