@@ -4,7 +4,7 @@ import { pickTopSet, suggestNextLinearLoad } from "./lib/progression/linear";
 import { applyPresetToCatalog } from "./lib/presets/applyPreset";
 import { blockForExercise, sessionsForExercise } from "./lib/sessions";
 import { loadAppState, saveAppState } from "./storage/state";
-import type { AppStateV2, Equipment, Exercise, SetEntry } from "./types/domain";
+import type { AppStateV2, Equipment, Exercise, SessionBlock, SetEntry } from "./types/domain";
 import type { WorkoutPresetDefinition } from "./types/preset";
 import "./App.css";
 
@@ -21,11 +21,14 @@ const DEFAULT_TARGET_REPS = 5;
 
 type DraftSet = { weight: string; reps: string };
 
-type ActivePresetState = {
-  preset: WorkoutPresetDefinition;
-  exerciseIds: string[];
-  stepIndex: number;
+type DraftBlock = {
+  exerciseId: string;
+  sets: DraftSet[];
 };
+
+function emptyDraftBlock(): DraftBlock {
+  return { exerciseId: "", sets: [{ weight: "", reps: "" }] };
+}
 
 function draftRowsFromMovement(m: { sets: number; reps: number }): DraftSet[] {
   return Array.from({ length: m.sets }, () => ({
@@ -54,22 +57,25 @@ function parseDraftSets(rows: DraftSet[]): SetEntry[] {
 export function App(): ReactElement {
   const [state, setState] = useState<AppStateV2>(() => loadAppState());
 
-  const persist = useCallback((next: AppStateV2) => {
-    setState(next);
-    saveAppState(next);
+  const persist = useCallback((next: AppStateV2 | ((prev: AppStateV2) => AppStateV2)) => {
+    setState((prev) => {
+      const resolved = typeof next === "function" ? next(prev) : next;
+      saveAppState(resolved);
+      return resolved;
+    });
   }, []);
 
   const [newExerciseName, setNewExerciseName] = useState("");
   const [newExerciseEquipment, setNewExerciseEquipment] = useState<Equipment>("barbell");
 
-  const [logExerciseId, setLogExerciseId] = useState("");
   const [logDate, setLogDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [logNotes, setLogNotes] = useState("");
-  const [draftSets, setDraftSets] = useState<DraftSet[]>([{ weight: "", reps: "" }]);
+  const [draftBlocks, setDraftBlocks] = useState<DraftBlock[]>([emptyDraftBlock()]);
 
   const [historyExerciseId, setHistoryExerciseId] = useState("");
 
-  const [activePreset, setActivePreset] = useState<ActivePresetState | null>(null);
+  /** Shown after loading a preset until save or clear. */
+  const [presetBanner, setPresetBanner] = useState<string | null>(null);
 
   const exercisesSorted = useMemo(
     () => [...state.exercises].sort((a, b) => a.name.localeCompare(b.name)),
@@ -78,28 +84,22 @@ export function App(): ReactElement {
 
   const loadPreset = (preset: WorkoutPresetDefinition) => {
     const { next, exerciseIds } = applyPresetToCatalog(state, preset);
-    const firstId = exerciseIds[0];
-    const firstMov = preset.movements[0];
-    if (!firstId || !firstMov) return;
+    if (exerciseIds.length === 0 || exerciseIds.length !== preset.movements.length) return;
     persist(next);
-    setActivePreset({ preset, exerciseIds, stepIndex: 0 });
-    setLogExerciseId(firstId);
-    setDraftSets(draftRowsFromMovement(firstMov));
+    const blocks: DraftBlock[] = exerciseIds.map((id, i) => {
+      const mov = preset.movements[i];
+      if (!mov) return { exerciseId: id, sets: [{ weight: "", reps: "" }] };
+      return { exerciseId: id, sets: draftRowsFromMovement(mov) };
+    });
+    setDraftBlocks(blocks);
     setLogNotes("");
-    setHistoryExerciseId((h) => h || firstId);
+    setPresetBanner(preset.name);
+    const first = exerciseIds[0];
+    if (first) setHistoryExerciseId((h) => h || first);
   };
 
-  const exitPreset = () => {
-    setActivePreset(null);
-  };
-
-  const onLogExerciseChange = (value: string) => {
-    setLogExerciseId(value);
-    if (!activePreset) return;
-    const expected = activePreset.exerciseIds[activePreset.stepIndex];
-    if (value && expected && value !== expected) {
-      setActivePreset(null);
-    }
+  const clearPresetBanner = () => {
+    setPresetBanner(null);
   };
 
   const addExercise = (e: React.FormEvent) => {
@@ -112,66 +112,62 @@ export function App(): ReactElement {
       equipment: newExerciseEquipment,
       createdAt: new Date().toISOString(),
     };
-    persist({ ...state, exercises: [...state.exercises, ex] });
+    persist((prev) => ({ ...prev, exercises: [...prev.exercises, ex] }));
     setNewExerciseName("");
-    if (!logExerciseId) setLogExerciseId(ex.id);
+    setDraftBlocks((blocks) => {
+      const copy = [...blocks];
+      const first = copy[0];
+      if (first && !first.exerciseId) {
+        copy[0] = { ...first, exerciseId: ex.id };
+        return copy;
+      }
+      return blocks;
+    });
     if (!historyExerciseId) setHistoryExerciseId(ex.id);
   };
 
   const logSession = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!logExerciseId) return;
-    const exercise = state.exercises.find((x) => x.id === logExerciseId);
-    if (!exercise) return;
-    const sets = parseDraftSets(draftSets);
-    if (sets.length === 0) return;
-
-    const block = {
-      id: crypto.randomUUID(),
-      exerciseId: exercise.id,
-      exerciseName: exercise.name,
-      sets,
-    };
-
-    persist({
-      ...state,
-      sessions: [
-        ...state.sessions,
-        {
+    persist((prev) => {
+      const blocks: SessionBlock[] = [];
+      for (const db of draftBlocks) {
+        if (!db.exerciseId) continue;
+        const ex = prev.exercises.find((x) => x.id === db.exerciseId);
+        if (!ex) continue;
+        const sets = parseDraftSets(db.sets);
+        if (sets.length === 0) continue;
+        blocks.push({
           id: crypto.randomUUID(),
-          date: logDate,
-          createdAt: new Date().toISOString(),
-          notes: logNotes.trim(),
-          blocks: [block],
-        },
-      ],
+          exerciseId: ex.id,
+          exerciseName: ex.name,
+          sets,
+        });
+      }
+      if (blocks.length === 0) return prev;
+      return {
+        ...prev,
+        sessions: [
+          ...prev.sessions,
+          {
+            id: crypto.randomUUID(),
+            date: logDate,
+            createdAt: new Date().toISOString(),
+            notes: logNotes.trim(),
+            blocks,
+          },
+        ],
+      };
     });
     setLogNotes("");
-
-    if (activePreset) {
-      if (activePreset.stepIndex < activePreset.preset.movements.length - 1) {
-        const nextIdx = activePreset.stepIndex + 1;
-        const nextId = activePreset.exerciseIds[nextIdx];
-        const nextMov = activePreset.preset.movements[nextIdx];
-        if (nextId && nextMov) {
-          setActivePreset({ ...activePreset, stepIndex: nextIdx });
-          setLogExerciseId(nextId);
-          setDraftSets(draftRowsFromMovement(nextMov));
-        }
-      } else {
-        setActivePreset(null);
-        setDraftSets([{ weight: "", reps: "" }]);
-      }
-    } else {
-      setDraftSets([{ weight: "", reps: "" }]);
-    }
+    setDraftBlocks([emptyDraftBlock()]);
+    setPresetBanner(null);
   };
 
   const removeSession = (sessionId: string) => {
-    persist({
-      ...state,
-      sessions: state.sessions.filter((s) => s.id !== sessionId),
-    });
+    persist((prev) => ({
+      ...prev,
+      sessions: prev.sessions.filter((s) => s.id !== sessionId),
+    }));
   };
 
   const historySessions = useMemo(() => {
@@ -179,12 +175,14 @@ export function App(): ReactElement {
     return sessionsForExercise(state.sessions, historyExerciseId);
   }, [state.sessions, historyExerciseId]);
 
+  const hintExerciseId = draftBlocks.find((b) => b.exerciseId)?.exerciseId ?? "";
+
   const linearHint = useMemo(() => {
-    if (!logExerciseId) return null;
-    const hist = sessionsForExercise(state.sessions, logExerciseId);
+    if (!hintExerciseId) return null;
+    const hist = sessionsForExercise(state.sessions, hintExerciseId);
     const last = hist[0];
     if (!last) return null;
-    const block = blockForExercise(last, logExerciseId);
+    const block = blockForExercise(last, hintExerciseId);
     if (!block || block.sets.length === 0) return null;
     const top = pickTopSet(block.sets);
     return suggestNextLinearLoad({
@@ -192,28 +190,70 @@ export function App(): ReactElement {
       increment: DEFAULT_INCREMENT,
       targetReps: DEFAULT_TARGET_REPS,
     });
-  }, [state.sessions, logExerciseId]);
+  }, [state.sessions, hintExerciseId]);
 
-  const updateDraft = (index: number, field: keyof DraftSet, value: string) => {
-    setDraftSets((rows) => {
-      const next = [...rows];
-      const row = next[index];
-      if (!row) return rows;
-      next[index] = { ...row, [field]: value };
+  const updateDraftSet = (
+    blockIndex: number,
+    setIndex: number,
+    field: keyof DraftSet,
+    value: string,
+  ) => {
+    setDraftBlocks((blocks) => {
+      const next = blocks.map((b, bi) => {
+        if (bi !== blockIndex) return b;
+        const sets = b.sets.map((row, si) => (si === setIndex ? { ...row, [field]: value } : row));
+        return { ...b, sets };
+      });
       return next;
     });
   };
 
-  const addSetRow = () => setDraftSets((rows) => [...rows, { weight: "", reps: "" }]);
-  const removeSetRow = (index: number) => {
-    setDraftSets((rows) => (rows.length <= 1 ? rows : rows.filter((_, i) => i !== index)));
+  const addSetRow = (blockIndex: number) => {
+    setDraftBlocks((blocks) =>
+      blocks.map((b, bi) =>
+        bi === blockIndex ? { ...b, sets: [...b.sets, { weight: "", reps: "" }] } : b,
+      ),
+    );
   };
+
+  const removeSetRow = (blockIndex: number, setIndex: number) => {
+    setDraftBlocks((blocks) =>
+      blocks.map((b, bi) => {
+        if (bi !== blockIndex) return b;
+        if (b.sets.length <= 1) return b;
+        return { ...b, sets: b.sets.filter((_, si) => si !== setIndex) };
+      }),
+    );
+  };
+
+  const setBlockExercise = (blockIndex: number, exerciseId: string) => {
+    setDraftBlocks((blocks) =>
+      blocks.map((b, bi) => (bi === blockIndex ? { ...b, exerciseId } : b)),
+    );
+  };
+
+  const addSessionBlock = () => {
+    setDraftBlocks((blocks) => [...blocks, emptyDraftBlock()]);
+  };
+
+  const removeSessionBlock = (blockIndex: number) => {
+    setDraftBlocks((blocks) =>
+      blocks.length <= 1 ? blocks : blocks.filter((_, bi) => bi !== blockIndex),
+    );
+  };
+
+  const canSaveSession = draftBlocks.some((db) => {
+    if (!db.exerciseId) return false;
+    return parseDraftSets(db.sets).length > 0;
+  });
 
   return (
     <div className="layout">
       <header className="header">
         <h1 className="title">Workout Tracker</h1>
-        <p className="subtitle">Presets, exercises, sessions, sets. Data stays on this device.</p>
+        <p className="subtitle">
+          Presets, exercises, multi-lift sessions. Data stays on this device.
+        </p>
       </header>
 
       <main className="main">
@@ -222,7 +262,8 @@ export function App(): ReactElement {
             Presets
           </h2>
           <p className="preset-intro">
-            Load a template to add exercises and step through lifts with target sets × reps.
+            Load a template to add exercises and pre-fill all lifts for one session. Save once when
+            done.
           </p>
           <ul className="preset-list">
             {BUNDLED_PRESETS.map((p) => (
@@ -290,37 +331,18 @@ export function App(): ReactElement {
             <p className="empty">Load a preset or add an exercise above.</p>
           ) : (
             <form className="form" onSubmit={logSession}>
-              {activePreset ? (
+              {presetBanner ? (
                 <div className="preset-banner" role="status">
                   <span>
-                    Preset: <strong>{activePreset.preset.name}</strong> — exercise{" "}
-                    {activePreset.stepIndex + 1} of {activePreset.preset.movements.length}
+                    Preset loaded: <strong>{presetBanner}</strong> — fill weights and save once.
                   </span>
-                  <button type="button" className="btn btn-ghost" onClick={exitPreset}>
-                    Exit preset
+                  <button type="button" className="btn btn-ghost" onClick={clearPresetBanner}>
+                    Dismiss
                   </button>
                 </div>
               ) : null}
               <label className="field">
-                <span className="label">Exercise</span>
-                <select
-                  className="input"
-                  value={logExerciseId}
-                  onChange={(ev) => onLogExerciseChange(ev.target.value)}
-                  required
-                >
-                  <option value="" disabled>
-                    Select…
-                  </option>
-                  {exercisesSorted.map((ex) => (
-                    <option key={ex.id} value={ex.id}>
-                      {ex.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label className="field">
-                <span className="label">Date</span>
+                <span className="label">Session date</span>
                 <input
                   className="input"
                   type="date"
@@ -329,45 +351,89 @@ export function App(): ReactElement {
                   required
                 />
               </label>
-              <fieldset className="fieldset">
-                <legend className="label">Sets</legend>
-                {draftSets.map((row, i) => (
-                  <div key={i} className="set-row">
-                    <input
-                      className="input input-narrow"
-                      inputMode="decimal"
-                      placeholder="Weight"
-                      aria-label={`Set ${i + 1} weight`}
-                      value={row.weight}
-                      onChange={(ev) => updateDraft(i, "weight", ev.target.value)}
-                    />
-                    <span className="set-sep">×</span>
-                    <input
-                      className="input input-narrow"
-                      inputMode="numeric"
-                      placeholder="Reps"
-                      aria-label={`Set ${i + 1} reps`}
-                      value={row.reps}
-                      onChange={(ev) => updateDraft(i, "reps", ev.target.value)}
-                    />
+
+              {draftBlocks.map((block, blockIndex) => (
+                <div key={blockIndex} className="session-block">
+                  <div className="session-block-head">
+                    <h3 className="session-block-title">Exercise {blockIndex + 1}</h3>
+                    {draftBlocks.length > 1 ? (
+                      <button
+                        type="button"
+                        className="btn btn-ghost"
+                        onClick={() => removeSessionBlock(blockIndex)}
+                      >
+                        Remove exercise
+                      </button>
+                    ) : null}
+                  </div>
+                  <label className="field">
+                    <span className="label">Exercise</span>
+                    <select
+                      className="input"
+                      value={block.exerciseId}
+                      onChange={(ev) => setBlockExercise(blockIndex, ev.target.value)}
+                    >
+                      <option value="">Select…</option>
+                      {exercisesSorted.map((ex) => (
+                        <option key={ex.id} value={ex.id}>
+                          {ex.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <fieldset className="fieldset">
+                    <legend className="label">Sets</legend>
+                    {block.sets.map((row, i) => (
+                      <div key={i} className="set-row">
+                        <input
+                          className="input input-narrow"
+                          inputMode="decimal"
+                          placeholder="Weight"
+                          aria-label={`Exercise ${blockIndex + 1} set ${i + 1} weight`}
+                          value={row.weight}
+                          onChange={(ev) =>
+                            updateDraftSet(blockIndex, i, "weight", ev.target.value)
+                          }
+                        />
+                        <span className="set-sep">×</span>
+                        <input
+                          className="input input-narrow"
+                          inputMode="numeric"
+                          placeholder="Reps"
+                          aria-label={`Exercise ${blockIndex + 1} set ${i + 1} reps`}
+                          value={row.reps}
+                          onChange={(ev) => updateDraftSet(blockIndex, i, "reps", ev.target.value)}
+                        />
+                        <button
+                          type="button"
+                          className="btn btn-ghost"
+                          onClick={() => removeSetRow(blockIndex, i)}
+                          disabled={block.sets.length <= 1}
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    ))}
                     <button
                       type="button"
-                      className="btn btn-ghost"
-                      onClick={() => removeSetRow(i)}
-                      disabled={draftSets.length <= 1}
+                      className="btn btn-secondary"
+                      onClick={() => addSetRow(blockIndex)}
                     >
-                      Remove
+                      Add set
                     </button>
-                  </div>
-                ))}
-                <button type="button" className="btn btn-secondary" onClick={addSetRow}>
-                  Add set
-                </button>
-              </fieldset>
+                  </fieldset>
+                </div>
+              ))}
+
+              <button type="button" className="btn btn-secondary" onClick={addSessionBlock}>
+                Add exercise to session
+              </button>
+
               {linearHint ? (
                 <p className="hint" role="status">
                   <strong>
-                    Suggested (linear {DEFAULT_INCREMENT} lb / {DEFAULT_TARGET_REPS} reps):
+                    Suggested (first exercise in list, linear {DEFAULT_INCREMENT} lb /{" "}
+                    {DEFAULT_TARGET_REPS} reps):
                   </strong>{" "}
                   {linearHint.reason}
                 </p>
@@ -382,7 +448,7 @@ export function App(): ReactElement {
                 />
               </label>
               <div className="actions">
-                <button type="submit" className="btn btn-primary" disabled={!logExerciseId}>
+                <button type="submit" className="btn btn-primary" disabled={!canSaveSession}>
                   Save session
                 </button>
               </div>
@@ -423,10 +489,15 @@ export function App(): ReactElement {
                     const block = blockForExercise(s, historyExerciseId);
                     const setsText =
                       block?.sets.map((x) => `${x.weight}×${x.reps}`).join(", ") ?? "—";
+                    const multi =
+                      s.blocks.length > 1 ? ` · ${s.blocks.length} exercises in session` : "";
                     return (
                       <li key={s.id} className="row">
                         <div className="row-main">
-                          <div className="row-title">{s.date}</div>
+                          <div className="row-title">
+                            {s.date}
+                            {multi ? <span className="row-badge">{multi}</span> : null}
+                          </div>
                           <div className="row-meta">{setsText}</div>
                           {s.notes ? <p className="row-notes">{s.notes}</p> : null}
                         </div>
