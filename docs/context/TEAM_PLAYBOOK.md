@@ -29,12 +29,13 @@
 
 ## File map for agents
 
-| Path                           | Use                                             |
-| ------------------------------ | ----------------------------------------------- |
-| `docs/context/`                | Product, architecture, team process             |
-| `docs/references/`             | Domain reference (overload, presets)            |
-| `docs/decisions/`              | ADRs for irreversible or costly choices         |
-| `skills/`                      | Copy into `~/.agents/skills/` or follow in-repo |
-| `.cursor/rules/`               | Cursor Rules (scoped + always-on)               |
-| `.cursor/hooks/`               | Format/lint automation on edit                  |
-| `docs/context/GIT_WORKFLOW.md` | Commit style (caveman-commit), `npm run ship`   |
+| Path                           | Use                                                        |
+| ------------------------------ | ---------------------------------------------------------- |
+| `docs/context/`                | Product, architecture, team process                        |
+| `docs/references/`             | Domain reference (overload, presets)                       |
+| `docs/decisions/`              | ADRs for irreversible or costly choices                    |
+| `skills/`                      | Copy into `~/.agents/skills/` or follow in-repo            |
+| `skills/nextpr/SKILL.md`       | **/nextpr** — option list before next implementation slice |
+| `.cursor/rules/`               | Cursor Rules (scoped + always-on)                          |
+| `.cursor/hooks/`               | Format/lint automation on edit                             |
+| `docs/context/GIT_WORKFLOW.md` | Commit style (caveman-commit), `npm run ship`              |

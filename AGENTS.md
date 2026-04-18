@@ -40,5 +40,7 @@ Use **one primary role per session** unless the user explicitly asks for a multi
 Copy or symlink project skills into `~/.agents/skills/` so Composer/agents can load them:
 
 - `skills/agent-handoff/` — delegation checklist.
+- `skills/nextpr/` — **/nextpr**: ranked improvement options; user picks id(s), then implement.
 - `skills/progressive-overload/` — overload & suggestion patterns.
 - `skills/workout-coaching/` — UX + disclosure for algorithmic suggestions.
+- `skills/caveman-commit/` — commit message style (see also `docs/context/GIT_WORKFLOW.md`).
