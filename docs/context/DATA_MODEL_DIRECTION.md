@@ -1,8 +1,8 @@
 # Data model direction (evolving)
 
-**Current**: `localStorage` — flat list of **sessions** with minimal fields.
+**Current (v2)**: `localStorage` key **`workout-tracker:v2`** — `exercises` + `sessions` with **blocks** and **sets** (weight, reps, optional RPE). **v1** migrates on read.
 
-**Target** (industry-aligned, implementation can phase):
+**Next** (industry-aligned, phased):
 
 - **Exercise** — Stable `id`, canonical name, optional muscle tags, equipment (barbell, dumbbell, machine, bodyweight).
 - **Program / template** — Named collection of exercises with default **sets × reps × RPE/RIR** targets and **progression rule** (linear, double progression, etc.).

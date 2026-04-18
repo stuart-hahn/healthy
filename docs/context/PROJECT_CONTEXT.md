@@ -4,16 +4,16 @@
 
 ## Product
 
-- **Mission**: Industry-standard **workout tracker** in the browser: users **log custom workouts** or pick **curated templates**, track **progressive overload** over time, and receive **editable suggestions** for weight, sets, reps, rest, and related training variables.
+- **Mission**: Industry-standard **workout tracker** in the browser: users **log custom workouts** or pick **curated templates** (later), track **progressive overload** over time, and receive **editable suggestions** for weight, sets, reps, rest, and related training variables.
 - **Principles**: Local-first privacy, transparent algorithmic coaching (not medical advice), fast logging, long-term adherence over novelty.
 - **Detail**: See `docs/context/PRODUCT_VISION.md`, `docs/context/DATA_MODEL_DIRECTION.md`, and `docs/references/`.
 
 ## Architecture
 
 - **Runtime**: **React** SPA (**Vite**), **TypeScript**, **nginx** static deploy via `Dockerfile`.
-- **Data (now → target)**: Today: `localStorage` with versioned keys. **Target**: exercises, templates/presets, workout instances with sets; migrations between versions; optional **IndexedDB** if structured data outgrows JSON (decide in ADR before large blobs).
-- **Domain logic**: Prefer **pure functions** in `src/` (e.g. `lib/progression/`) with unit tests; UI only orchestrates.
-- **Presets**: Ship as versioned **bundled data** (JSON/TS); user templates share same schema.
+- **Data (implemented)**: **`workout-tracker:v2`** in `localStorage` — `AppStateV2`: `exercises[]` (id, name, equipment, createdAt) and `sessions[]` (date, notes, `blocks[]` with `sets[]` of weight/reps/optional RPE). **v1** flat arrays migrate on first load; v1 key left in place for safety.
+- **Domain logic**: **Pure functions** in `src/lib/progression/` (linear suggestion + `pickTopSet`); session helpers in `src/lib/sessions.ts`.
+- **Presets**: Not yet — bundled JSON/TS templates next milestone.
 - **Boundaries**: No backend required for core MVP; future sync/API is opt-in and ADR’d.
 
 ## Conventions
@@ -30,11 +30,13 @@
 
 ## Glossary
 
-| Term                     | Meaning                                                                 |
-| ------------------------ | ----------------------------------------------------------------------- |
-| **Preset / template**    | Reusable workout definition (exercises, defaults, progression rule id). |
-| **Session / workout**    | One performed training log on a calendar day (may include many sets).   |
-| **Progressive overload** | Planned increase in stress (load, volume, reps, etc.) over time.        |
-| **Suggestion**           | Algorithmic next-step target; always editable and labeled in UI.        |
+| Term                     | Meaning                                                                  |
+| ------------------------ | ------------------------------------------------------------------------ |
+| **Exercise**             | Catalog row the user creates; referenced by sessions.                    |
+| **Session**              | One training day log; contains one or more **blocks** (exercise + sets). |
+| **Block**                | One exercise within a session (denormalized name + `sets`).              |
+| **Preset / template**    | Reusable workout definition (future).                                    |
+| **Progressive overload** | Planned increase in stress (load, volume, reps, etc.) over time.         |
+| **Suggestion**           | Algorithmic next-step target; always editable and labeled in UI.         |
 
 _Update this file when product or architecture changes materially._
