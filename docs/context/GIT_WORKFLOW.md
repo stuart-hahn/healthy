@@ -4,7 +4,7 @@
 
 Follow **`skills/caveman-commit/SKILL.md`**: Conventional Commits, imperative subject, terse; body only for why, breaking changes, or migrations.
 
-Agents: generate the subject (and body if needed) with that skill before committing.
+**Agents**: Read that skill for **every** suggested message—including after implementing code, when the user says **`/caveman-commit`**, or when staging—so caveman-style lines stay the default. Generate the subject (and body if needed) before `git commit` / `npm run ship`.
 
 ## One-shot: commit and push
 
@@ -18,6 +18,18 @@ Runs: `git add -A` → `git commit -m "…"` → `git push`. **`pre-commit`** ru
 
 If the tree is clean, `ship` exits with an error (nothing to do).
 
+## `git push` (pre-push)
+
+**`pre-push`** runs `scripts/husky-pre-push-stage-check.sh` first:
+
+1. **`git add -A`** — stages all changes (tracked + untracked).
+2. If the index still differs from **`HEAD`** (uncommitted work), the hook **exits with an error** and prints steps: use **`/caveman-commit`** in Cursor (or `skills/caveman-commit/SKILL.md`), then **`git commit`**, then push again.
+
+**`/caveman-commit` cannot run inside git hooks** — Cursor skills need the IDE/agent. The hook only stages and enforces “commit before push.”
+
+**Bypass** (e.g. push without committing local WIP): `SKIP_CAVEMAN_STAGED_CHECK=1 git push`  
+**Husky off entirely**: `HUSKY=0 git push`
+
 ## Push only (commits already made)
 
 ```bash
@@ -27,7 +39,8 @@ git push
 ## What is not automated
 
 - **No auto-commit on file save** — avoids junk history and half-broken commits.
-- Hooks do **not** write messages; you or the AI still supply the caveman-commit line.
+- Hooks do **not** invoke the AI for commit text; **`/caveman-commit`** stays a Cursor step before `git commit`.
+- Agents should still **propose** caveman lines after substantive edits (`skills/caveman-commit/SKILL.md`).
 
 ## CI
 

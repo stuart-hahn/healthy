@@ -4,7 +4,9 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 
 export default tseslint.config(
-  { ignores: ["dist/**", "node_modules/**", "coverage/**", "eslint.config.mjs"] },
+  {
+    ignores: ["dist/**", "node_modules/**", "coverage/**", "eslint.config.mjs", "scripts/**"],
+  },
   eslint.configs.recommended,
   ...tseslint.configs.recommendedTypeChecked,
   reactHooks.configs.flat.recommended,

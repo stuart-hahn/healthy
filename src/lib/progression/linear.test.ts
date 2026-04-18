@@ -32,6 +32,7 @@ describe("suggestNextLinearLoad", () => {
     expect(out?.weight).toBe(140);
     expect(out?.reason).toMatch(/140/);
     expect(out?.reason).toMatch(/lb/);
+    expect(out?.ruleHint).toMatch(/Linear progression/);
   });
 
   it("uses unitLabel in reason", () => {

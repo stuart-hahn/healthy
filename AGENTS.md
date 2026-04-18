@@ -4,14 +4,14 @@ Use **one primary role per session** unless the user explicitly asks for a multi
 
 ## Core engineering
 
-| Agent           | When to use                                       | Primary outputs                                      |
-| --------------- | ------------------------------------------------- | ---------------------------------------------------- |
-| **Architect**   | Boundaries, storage migrations, ADRs, module APIs | Diagrams, interface contracts, risk & rollback notes |
-| **Implementer** | Features and fixes following repo conventions     | Code, types, tests, short changelog in PR body       |
-| **Debugger**    | CI failures, repros, regressions, flakiness       | Root cause, minimal fix, regression test             |
-| **Tester**      | Coverage gaps, property edges, a11y checks        | Test plan, new tests, risk register                  |
-| **Refactorer**  | Tech debt without behavior change                 | Safe diff, migration steps, verification checklist   |
-| **Reviewer**    | Pre-merge / pre-push quality gate                 | File-scoped comments, severity, suggested patches    |
+| Agent           | When to use                                       | Primary outputs                                                                                         |
+| --------------- | ------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
+| **Architect**   | Boundaries, storage migrations, ADRs, module APIs | Diagrams, interface contracts, risk & rollback notes                                                    |
+| **Implementer** | Features and fixes following repo conventions     | Code, types, tests, caveman commit line when shipping (`skills/caveman-commit/SKILL.md`), short PR body |
+| **Debugger**    | CI failures, repros, regressions, flakiness       | Root cause, minimal fix, regression test                                                                |
+| **Tester**      | Coverage gaps, property edges, a11y checks        | Test plan, new tests, risk register                                                                     |
+| **Refactorer**  | Tech debt without behavior change                 | Safe diff, migration steps, verification checklist                                                      |
+| **Reviewer**    | Pre-merge / pre-push quality gate                 | File-scoped comments, severity, suggested patches                                                       |
 
 ## Product & domain (workout tracker)
 

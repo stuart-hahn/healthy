@@ -15,3 +15,12 @@ export function blockForExercise(
 ): SessionBlock | undefined {
   return session.blocks.find((b) => b.exerciseId === exerciseId);
 }
+
+/** Latest training day by calendar date, then createdAt. */
+export function mostRecentSession(sessions: TrainingSession[]): TrainingSession | null {
+  if (sessions.length === 0) return null;
+  const sorted = [...sessions].sort(
+    (a, b) => b.date.localeCompare(a.date) || b.createdAt.localeCompare(a.createdAt),
+  );
+  return sorted[0] ?? null;
+}

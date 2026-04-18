@@ -14,9 +14,14 @@ export type LinearSuggestionInput = {
   unitLabel?: string;
 };
 
+/** One-line explanation of the linear rule (same for bump / hold). */
+export const LINEAR_RULE_HINT =
+  "Linear progression: when your heaviest set hits the target rep count, the next load step is your smallest plate increment.";
+
 export type LinearSuggestion = {
   weight: number;
   reason: string;
+  ruleHint: string;
 };
 
 /**
@@ -33,6 +38,7 @@ export function suggestNextLinearLoad(input: LinearSuggestionInput): LinearSugge
   return {
     weight: lastTopSet.weight + increment,
     reason: `Hit ${targetReps}+ reps at ${lastTopSet.weight} ${u} — try ${lastTopSet.weight + increment} ${u} next time.`,
+    ruleHint: LINEAR_RULE_HINT,
   };
 }
 

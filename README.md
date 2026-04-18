@@ -45,7 +45,7 @@ Messages follow **`skills/caveman-commit/SKILL.md`**. With **`origin`** configur
 npm run ship -- 'chore: example commit message'
 ```
 
-See [`docs/context/GIT_WORKFLOW.md`](docs/context/GIT_WORKFLOW.md). Pushes run **pre-push** checks; GitHub runs **CI** (`.github/workflows/ci.yml`).
+See [`docs/context/GIT_WORKFLOW.md`](docs/context/GIT_WORKFLOW.md). **`git push`** runs **pre-push**: auto-**`git add -A`**, then **fails** if you still need a commit (use **`/caveman-commit`** in Cursor, then `git commit`). GitHub runs **CI** (`.github/workflows/ci.yml`).
 
 ## Docker
 

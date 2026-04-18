@@ -1,9 +1,12 @@
-import { useCallback, useMemo, useState, type ReactElement } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactElement } from "react";
 import { BUNDLED_PRESETS } from "./data/presets";
-import { linearHintForExercise } from "./lib/progression/hintForExercise";
+import { linearHintUiForExercise } from "./lib/progression/hintForExercise";
+import { buildSessionSaveSummary, type SessionSaveComparison } from "./lib/sessionSaveSummary";
 import { applyPresetToCatalog } from "./lib/presets/applyPreset";
 import { clampUserSettings, mergeUserSettings } from "./lib/settings";
-import { blockForExercise, sessionsForExercise } from "./lib/sessions";
+import { blockForExercise, mostRecentSession, sessionsForExercise } from "./lib/sessions";
+import { formatTopSetPrNote } from "./lib/topSetPr";
+import { buildExportEnvelope, parseImportedAppState } from "./storage/importExport";
 import { loadAppState, saveAppState } from "./storage/state";
 import type {
   AppStateV2,
@@ -11,6 +14,7 @@ import type {
   Exercise,
   SessionBlock,
   SetEntry,
+  TrainingSession,
   UserSettings,
 } from "./types/domain";
 import type { WorkoutPresetDefinition } from "./types/preset";
@@ -59,6 +63,53 @@ function parseDraftSets(rows: DraftSet[]): SetEntry[] {
   return out;
 }
 
+function buildSessionBlocksFromDraft(
+  exercises: Exercise[],
+  draftBlocks: DraftBlock[],
+): SessionBlock[] {
+  const blocks: SessionBlock[] = [];
+  for (const db of draftBlocks) {
+    if (!db.exerciseId) continue;
+    const ex = exercises.find((x) => x.id === db.exerciseId);
+    if (!ex) continue;
+    const sets = parseDraftSets(db.sets);
+    if (sets.length === 0) continue;
+    blocks.push({
+      id: crypto.randomUUID(),
+      exerciseId: ex.id,
+      exerciseName: ex.name,
+      sets,
+    });
+  }
+  return blocks;
+}
+
+function volumeDeltaLabel(before: number, after: number, unit: UserSettings["weightUnit"]): string {
+  const unitLabel = unit === "kg" ? "kg·reps" : "lb·reps";
+  const d = after - before;
+  if (before === 0) {
+    return after === 0 ? "no change" : `total ${after} ${unitLabel}`;
+  }
+  const sign = d >= 0 ? "+" : "";
+  const pct = (d / before) * 100;
+  return `${sign}${d} ${unitLabel} (${sign}${pct.toFixed(1)}%)`;
+}
+
+function draftBlocksFromSession(session: TrainingSession, exercises: Exercise[]): DraftBlock[] {
+  const out: DraftBlock[] = [];
+  for (const block of session.blocks) {
+    if (!exercises.some((e) => e.id === block.exerciseId)) continue;
+    out.push({
+      exerciseId: block.exerciseId,
+      sets: block.sets.map((s) => ({
+        weight: String(s.weight),
+        reps: String(s.reps),
+      })),
+    });
+  }
+  return out;
+}
+
 export function App(): ReactElement {
   const [state, setState] = useState<AppStateV2>(() => loadAppState());
 
@@ -82,6 +133,14 @@ export function App(): ReactElement {
   /** Shown after loading a preset until save or clear. */
   const [presetBanner, setPresetBanner] = useState<string | null>(null);
 
+  /** After saving a session: vs last time for each lift (dismissible). */
+  const [sessionSaveBanner, setSessionSaveBanner] = useState<{
+    date: string;
+    comparisons: SessionSaveComparison[];
+  } | null>(null);
+
+  const backupFileInputRef = useRef<HTMLInputElement>(null);
+
   const exercisesSorted = useMemo(
     () => [...state.exercises].sort((a, b) => a.name.localeCompare(b.name)),
     [state.exercises],
@@ -96,10 +155,62 @@ export function App(): ReactElement {
     }));
   };
 
+  const exportBackup = useCallback(() => {
+    const env = buildExportEnvelope(state);
+    const date = new Date().toISOString().slice(0, 10);
+    const blob = new Blob([JSON.stringify(env, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `workout-tracker-backup-${date}.json`;
+    a.rel = "noopener";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }, [state]);
+
+  const onImportBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const text = reader.result;
+        if (typeof text !== "string") {
+          window.alert("Could not read file.");
+          return;
+        }
+        const raw: unknown = JSON.parse(text);
+        const result = parseImportedAppState(raw);
+        if (!result.ok) {
+          window.alert(result.error);
+          return;
+        }
+        const ok = window.confirm(
+          "Replace all exercises and sessions on this device with this backup? This cannot be undone.",
+        );
+        if (!ok) return;
+        persist(() => result.state);
+        setDraftBlocks([emptyDraftBlock()]);
+        setLogNotes("");
+        setPresetBanner(null);
+        setHistoryExerciseId(result.state.exercises[0]?.id ?? "");
+      } catch {
+        window.alert("File is not valid JSON.");
+      }
+    };
+    reader.onerror = () => {
+      window.alert("Could not read file.");
+    };
+    reader.readAsText(file);
+  };
+
   const blockHints = useMemo(
     () =>
       draftBlocks.map((b) =>
-        b.exerciseId ? linearHintForExercise(b.exerciseId, state.sessions, settings) : null,
+        b.exerciseId ? linearHintUiForExercise(b.exerciseId, state.sessions, settings) : null,
       ),
     [draftBlocks, state.sessions, settings],
   );
@@ -150,36 +261,18 @@ export function App(): ReactElement {
 
   const logSession = (e: React.FormEvent) => {
     e.preventDefault();
-    persist((prev) => {
-      const blocks: SessionBlock[] = [];
-      for (const db of draftBlocks) {
-        if (!db.exerciseId) continue;
-        const ex = prev.exercises.find((x) => x.id === db.exerciseId);
-        if (!ex) continue;
-        const sets = parseDraftSets(db.sets);
-        if (sets.length === 0) continue;
-        blocks.push({
-          id: crypto.randomUUID(),
-          exerciseId: ex.id,
-          exerciseName: ex.name,
-          sets,
-        });
-      }
-      if (blocks.length === 0) return prev;
-      return {
-        ...prev,
-        sessions: [
-          ...prev.sessions,
-          {
-            id: crypto.randomUUID(),
-            date: logDate,
-            createdAt: new Date().toISOString(),
-            notes: logNotes.trim(),
-            blocks,
-          },
-        ],
-      };
-    });
+    const blocks = buildSessionBlocksFromDraft(state.exercises, draftBlocks);
+    if (blocks.length === 0) return;
+    const comparisons = buildSessionSaveSummary(state.sessions, blocks);
+    const newSession: TrainingSession = {
+      id: crypto.randomUUID(),
+      date: logDate,
+      createdAt: new Date().toISOString(),
+      notes: logNotes.trim(),
+      blocks,
+    };
+    persist((prev) => ({ ...prev, sessions: [...prev.sessions, newSession] }));
+    setSessionSaveBanner({ date: logDate, comparisons });
     setLogNotes("");
     setDraftBlocks([emptyDraftBlock()]);
     setPresetBanner(null);
@@ -196,6 +289,30 @@ export function App(): ReactElement {
     if (!historyExerciseId) return [];
     return sessionsForExercise(state.sessions, historyExerciseId);
   }, [state.sessions, historyExerciseId]);
+
+  const lastLoggedSession = useMemo(() => mostRecentSession(state.sessions), [state.sessions]);
+
+  const canRepeatLastSession = useMemo(() => {
+    if (!lastLoggedSession?.blocks.length) return false;
+    return lastLoggedSession.blocks.some((b) => state.exercises.some((e) => e.id === b.exerciseId));
+  }, [lastLoggedSession, state.exercises]);
+
+  const repeatLastSession = () => {
+    const last = mostRecentSession(state.sessions);
+    if (!last?.blocks.length) return;
+    const next = draftBlocksFromSession(last, state.exercises);
+    if (next.length === 0) {
+      window.alert(
+        "Could not repeat that session — none of its exercises are still in your catalog.",
+      );
+      return;
+    }
+    setDraftBlocks(next);
+    setLogDate(new Date().toISOString().slice(0, 10));
+    setPresetBanner(`Repeated from ${last.date}`);
+    const fid = next[0]?.exerciseId;
+    if (fid) setHistoryExerciseId((h) => h || fid);
+  };
 
   const updateDraftSet = (
     blockIndex: number,
@@ -266,6 +383,56 @@ export function App(): ReactElement {
       </header>
 
       <main className="main">
+        {sessionSaveBanner ? (
+          <section
+            className="card save-summary-card"
+            aria-labelledby="save-summary-heading"
+            role="status"
+          >
+            <div className="save-summary-head">
+              <h2 id="save-summary-heading" className="card-title save-summary-title">
+                Session saved · {sessionSaveBanner.date}
+              </h2>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setSessionSaveBanner(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+            <p className="preset-intro save-summary-intro">
+              Compared to your last logged session for each lift (volume = weight × reps summed).
+              “Best” uses the heaviest <strong>single-set weight</strong> in your history — not a
+              competition standard.
+            </p>
+            <ul className="save-summary-list">
+              {sessionSaveBanner.comparisons.map((c, idx) => (
+                <li key={`${c.exerciseId}-${idx}`}>
+                  <div>
+                    <strong>{c.exerciseName}</strong>
+                    {!c.prior ? (
+                      <span> — first log for this lift here; nothing to compare yet.</span>
+                    ) : (
+                      <span>
+                        {" "}
+                        vs {c.priorDate}: volume {c.prior.volume} → {c.current.volume} (
+                        {volumeDeltaLabel(c.prior.volume, c.current.volume, settings.weightUnit)})
+                        {" · "}
+                        top set {c.prior.topWeight}×{c.prior.topReps} → {c.current.topWeight}×
+                        {c.current.topReps}
+                      </span>
+                    )}
+                  </div>
+                  <p className="pr-note">
+                    {formatTopSetPrNote(c.topSetPr, c.current.topWeight, settings.weightUnit)}
+                  </p>
+                </li>
+              ))}
+            </ul>
+          </section>
+        ) : null}
+
         <section className="card" aria-labelledby="presets-heading">
           <h2 id="presets-heading" className="card-title">
             Presets
@@ -384,6 +551,36 @@ export function App(): ReactElement {
           </div>
         </section>
 
+        <section className="card" aria-labelledby="backup-heading">
+          <h2 id="backup-heading" className="card-title">
+            Data backup
+          </h2>
+          <p className="preset-intro">
+            Download a JSON file to back up this device&apos;s data, or choose a file to replace
+            everything stored here. Imports are validated; replacing data cannot be undone.
+          </p>
+          <div className="backup-actions">
+            <button type="button" className="btn btn-secondary" onClick={exportBackup}>
+              Export JSON
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => backupFileInputRef.current?.click()}
+            >
+              Import JSON…
+            </button>
+            <input
+              ref={backupFileInputRef}
+              type="file"
+              accept="application/json,.json"
+              className="file-input-hidden"
+              aria-label="Choose backup JSON file"
+              onChange={onImportBackupFile}
+            />
+          </div>
+        </section>
+
         <section className="card" aria-labelledby="log-heading">
           <h2 id="log-heading" className="card-title">
             Log session
@@ -402,6 +599,25 @@ export function App(): ReactElement {
                   </button>
                 </div>
               ) : null}
+              <div className="repeat-last">
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  disabled={!canRepeatLastSession}
+                  onClick={repeatLastSession}
+                >
+                  Repeat last session
+                </button>
+                {lastLoggedSession ? (
+                  <p className="repeat-last-help">
+                    Fills exercises, sets, weights, and reps from{" "}
+                    <strong>{lastLoggedSession.date}</strong> (today’s date selected — edit anything
+                    before saving).
+                  </p>
+                ) : (
+                  <p className="repeat-last-help muted">Log a session once to enable this.</p>
+                )}
+              </div>
               <label className="field">
                 <span className="label">Session date</span>
                 <input
@@ -484,10 +700,13 @@ export function App(): ReactElement {
                     </button>
                   </fieldset>
                   {blockHints[blockIndex] ? (
-                    <p className="hint hint-block" role="status">
-                      <strong>Suggested (algorithm, not medical advice):</strong>{" "}
-                      {blockHints[blockIndex]?.reason}
-                    </p>
+                    <div className="hint hint-block">
+                      <p className="hint-primary" role="status">
+                        <strong>Suggested · from your history (not medical advice):</strong>{" "}
+                        {blockHints[blockIndex]?.primary}
+                      </p>
+                      <p className="hint-rule">{blockHints[blockIndex]?.rule}</p>
+                    </div>
                   ) : null}
                 </div>
               ))}
