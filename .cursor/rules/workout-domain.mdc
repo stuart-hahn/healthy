@@ -1,0 +1,13 @@
+---
+description: Workout tracker domain — overload, presets, coaching suggestions
+globs: src/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# Workout domain
+
+- **Progressive overload** and **suggestions** must align with `docs/references/PROGRESSIVE_OVERLOAD.md` and `docs/references/COACHING_UX.md`.
+- **Presets / templates** follow `docs/references/WORKOUT_PRESETS.md`; bundled presets are data, not one-off UI hacks.
+- Put **calculation and progression** in testable **pure functions**; keep UI thin.
+- **Never** present algorithm output as medical advice; support dismiss and edit flows for suggestions.
+- When adding fields: plan **storage version** and migration (see `docs/context/DATA_MODEL_DIRECTION.md`).

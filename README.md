@@ -1,8 +1,23 @@
 # Workout Tracker
 
-Browser-based workout log: name, date, and optional notes. Data stays in **localStorage** on the device (no sign-in). Built with **React**, **Vite**, and **TypeScript**; production image uses **nginx** to serve the static build.
+Browser-based workout tracker focused on **templates**, **progressive overload**, and **transparent, editable suggestions** (weights, sets, reps, rest — not medical advice). Built with **React**, **Vite**, and **TypeScript**; production image uses **nginx** for static hosting.
 
-This repo also keeps Cursor-oriented docs (`.cursor/`, `AGENTS.md`, `docs/context/`, etc.) from the original template.
+## Autonomous development team
+
+This repo is set up for **multi-agent and multi-session** work:
+
+| Resource                                                                       | Purpose                                                    |
+| ------------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| [`AGENTS.md`](AGENTS.md)                                                       | Roles (engineering + product/domain + coaching logic + UX) |
+| [`docs/context/TEAM_PLAYBOOK.md`](docs/context/TEAM_PLAYBOOK.md)               | How agents sequence work and define done                   |
+| [`docs/context/PRODUCT_VISION.md`](docs/context/PRODUCT_VISION.md)             | North star, pillars, safety                                |
+| [`docs/context/DATA_MODEL_DIRECTION.md`](docs/context/DATA_MODEL_DIRECTION.md) | Evolving schema for exercises, sets, presets               |
+| [`docs/references/`](docs/references/)                                         | Domain references (overload, presets, coaching UX)         |
+| [`skills/`](skills/)                                                           | Installable skills — copy into `~/.agents/skills/`         |
+| [`.cursor/rules/`](.cursor/rules/)                                             | Cursor Rules (delegation + workout domain + TS + tests)    |
+| [`.cursor/hooks/`](.cursor/hooks/)                                             | Format + ESLint on save; secret guard on submit            |
+
+ADR: [`docs/decisions/0001-agent-team-and-product-north-star.md`](docs/decisions/0001-agent-team-and-product-north-star.md).
 
 ## Quick start (local)
 
@@ -36,12 +51,14 @@ Then open `http://localhost:8080`.
 
 | Path                               | Role                                   |
 | ---------------------------------- | -------------------------------------- |
-| `src/`                             | React app (`App.tsx`, storage, styles) |
+| `src/`                             | React app                              |
 | `Dockerfile` + `docker/nginx.conf` | Multi-stage build + SPA static hosting |
 | `.cursor/rules/*.mdc`              | Cursor rules                           |
-| `docs/context/PROJECT_CONTEXT.md`  | Product + architecture context         |
+| `docs/context/`                    | Product, architecture, team playbook   |
+| `docs/references/`                 | Domain reference material for agents   |
 | `docs/decisions/`                  | ADRs                                   |
-| `AGENTS.md`                        | Agent / handoff roles                  |
+| `skills/`                          | Agent skill definitions                |
+| `AGENTS.md`                        | Agent roles and handoff contract       |
 
 ## Conventions
 
@@ -50,7 +67,7 @@ Then open `http://localhost:8080`.
 
 ## GitHub
 
-Git is initialized here with an initial commit. Create the remote and push (replace `YOUR_USER`):
+Create the remote and push (replace `YOUR_USER`):
 
 ```bash
 gh repo create YOUR_USER/workout-tracker --private --source=. --remote=origin --push

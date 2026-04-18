@@ -4,30 +4,37 @@
 
 ## Product
 
-- One sentence: **Workout Tracker** is a browser SPA for logging named workouts with date and notes; data persists in **localStorage** on the user’s device (no account, no server-side storage in v1).
+- **Mission**: Industry-standard **workout tracker** in the browser: users **log custom workouts** or pick **curated templates**, track **progressive overload** over time, and receive **editable suggestions** for weight, sets, reps, rest, and related training variables.
+- **Principles**: Local-first privacy, transparent algorithmic coaching (not medical advice), fast logging, long-term adherence over novelty.
+- **Detail**: See `docs/context/PRODUCT_VISION.md`, `docs/context/DATA_MODEL_DIRECTION.md`, and `docs/references/`.
 
 ## Architecture
 
-- **Runtime**: **React 19** SPA built with **Vite 8**, TypeScript, static assets served by **nginx** in production (see `Dockerfile`).
-- **Data**: `localStorage` key `workout-tracker:v1` — JSON array of workouts (`id`, `name`, `date`, `notes`, `createdAt`). No backend API yet.
-- **Boundaries**: Deployable as a single container image (build → `dist` → nginx). Future: optional API + DB would replace or sync local state.
+- **Runtime**: **React** SPA (**Vite**), **TypeScript**, **nginx** static deploy via `Dockerfile`.
+- **Data (now → target)**: Today: `localStorage` with versioned keys. **Target**: exercises, templates/presets, workout instances with sets; migrations between versions; optional **IndexedDB** if structured data outgrows JSON (decide in ADR before large blobs).
+- **Domain logic**: Prefer **pure functions** in `src/` (e.g. `lib/progression/`) with unit tests; UI only orchestrates.
+- **Presets**: Ship as versioned **bundled data** (JSON/TS); user templates share same schema.
+- **Boundaries**: No backend required for core MVP; future sync/API is opt-in and ADR’d.
 
 ## Conventions
 
-- Branching: trunk-based with short-lived branches (`feat/`, `fix/`, `chore/`, `docs/`).
-- Releases: **semver** for tagged releases; Docker tags can mirror git tags.
+- **Branching**: Trunk-based, short-lived branches (`feat/`, `fix/`, `chore/`, `docs/`).
+- **Releases**: **Semver**; Docker tags may track git tags.
+- **Agents**: `AGENTS.md` + `docs/context/TEAM_PLAYBOOK.md` define roles and handoffs.
 
-## Non-goals
+## Non-goals (current)
 
-- User accounts, cloud sync, and social features (unless explicitly added later).
-- Native mobile apps in v1.
-- Replacing localStorage with IndexedDB unless scale or offline requirements demand it.
+- Replacing medical or in-person coaching for injury rehabilitation.
+- Shame-based motivation UX.
+- **Note**: Cloud sync / accounts may be added later under explicit ADRs; not assumed today.
 
 ## Glossary
 
-| Term        | Meaning                                                                |
-| ----------- | ---------------------------------------------------------------------- |
-| **Workout** | Logged session: display name, calendar date, optional free-text notes. |
-| **SPA**     | Single-page app; client-side routing not required for current UI.      |
+| Term                     | Meaning                                                                 |
+| ------------------------ | ----------------------------------------------------------------------- |
+| **Preset / template**    | Reusable workout definition (exercises, defaults, progression rule id). |
+| **Session / workout**    | One performed training log on a calendar day (may include many sets).   |
+| **Progressive overload** | Planned increase in stress (load, volume, reps, etc.) over time.        |
+| **Suggestion**           | Algorithmic next-step target; always editable and labeled in UI.        |
 
-_Update this file when product or architecture changes._
+_Update this file when product or architecture changes materially._

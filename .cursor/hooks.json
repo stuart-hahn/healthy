@@ -5,6 +5,10 @@
       {
         "command": ".cursor/hooks/format-after-edit.sh",
         "matcher": "Write|TabWrite"
+      },
+      {
+        "command": ".cursor/hooks/eslint-after-edit.sh",
+        "matcher": "Write|TabWrite"
       }
     ],
     "beforeSubmitPrompt": [

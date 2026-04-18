@@ -7,6 +7,7 @@ alwaysApply: true
 
 - Prefer small, reviewable changes; one concern per PR or agent turn when possible.
 - Before large edits, read nearby code and match existing patterns (imports, error handling, tests).
-- Treat `docs/context/PROJECT_CONTEXT.md` and `docs/decisions/` as source of truth for intent; update them when behavior changes materially.
+- Treat `docs/context/PROJECT_CONTEXT.md`, `docs/context/PRODUCT_VISION.md`, `docs/context/TEAM_PLAYBOOK.md`, and `docs/decisions/` as source of truth for intent; update them when behavior changes materially.
 - Never commit secrets; use `.env` locally and reference `.env.example` keys only.
 - When unsure, add a short note in `docs/decisions/` rather than guessing requirements.
+- For multi-session work, follow `AGENTS.md` and keep `docs/references/` in sync with domain logic.

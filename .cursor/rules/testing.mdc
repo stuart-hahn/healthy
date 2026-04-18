@@ -7,5 +7,6 @@ alwaysApply: false
 # Testing
 
 - New logic gets unit tests colocated or under `src/**/__tests__/`.
+- **Progression and suggestion** logic: pure functions + table-driven tests; freeze dates with `vi.useFakeTimers()` when needed.
 - Prefer fast, deterministic tests; mock time and I/O at boundaries.
 - Name tests after behavior (`returns X when Y`), not after implementation details.
