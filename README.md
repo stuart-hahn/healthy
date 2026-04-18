@@ -46,3 +46,18 @@ Then open `http://localhost:8080`.
 
 - **Branches**: `feat/`, `fix/`, `chore/`, `docs/`.
 - **Commits**: Conventional Commits (`feat:`, `fix:`, `chore:`).
+
+## GitHub
+
+Git is initialized here with an initial commit. Create the remote and push (replace `YOUR_USER`):
+
+```bash
+gh repo create YOUR_USER/workout-tracker --private --source=. --remote=origin --push
+```
+
+Without GitHub CLI: create an empty repo on GitHub, then:
+
+```bash
+git remote add origin https://github.com/YOUR_USER/workout-tracker.git
+git push -u origin main
+```
