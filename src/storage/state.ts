@@ -1,3 +1,4 @@
+import { normalizeAppStateV2 } from "../lib/settings";
 import type { AppStateV2 } from "../types/domain";
 import { STORAGE_KEY_V2 } from "./constants";
 import { migrateV1ToV2, readLegacyRowsFromStorage } from "./migrateV1";
@@ -20,7 +21,7 @@ function parseV2(raw: string | null): AppStateV2 | null {
 }
 
 function emptyState(): AppStateV2 {
-  return { version: 2, exercises: [], sessions: [] };
+  return normalizeAppStateV2({ version: 2, exercises: [], sessions: [] });
 }
 
 /**
@@ -29,8 +30,8 @@ function emptyState(): AppStateV2 {
 export function loadAppState(
   storage: Pick<Storage, "getItem" | "setItem"> = localStorage,
 ): AppStateV2 {
-  const v2 = parseV2(storage.getItem(STORAGE_KEY_V2));
-  if (v2) return v2;
+  const v2raw = parseV2(storage.getItem(STORAGE_KEY_V2));
+  if (v2raw) return normalizeAppStateV2(v2raw);
 
   const legacy = readLegacyRowsFromStorage((k) => storage.getItem(k));
   if (legacy.length === 0) {
@@ -39,7 +40,7 @@ export function loadAppState(
     return initial;
   }
 
-  const migrated = migrateV1ToV2(legacy);
+  const migrated = normalizeAppStateV2(migrateV1ToV2(legacy));
   storage.setItem(STORAGE_KEY_V2, JSON.stringify(migrated));
   return migrated;
 }

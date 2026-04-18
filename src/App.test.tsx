@@ -14,10 +14,11 @@ describe("App", () => {
     localStorage.removeItem(STORAGE_KEY_V2);
   });
 
-  it("renders title, presets, and exercises", () => {
+  it("renders title, presets, exercises, and settings", () => {
     render(<App />);
     expect(screen.getByRole("heading", { name: /workout tracker/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /presets/i })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: /exercises/i })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /training settings/i })).toBeInTheDocument();
   });
 });

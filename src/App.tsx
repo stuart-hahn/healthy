@@ -1,10 +1,18 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import { BUNDLED_PRESETS } from "./data/presets";
-import { pickTopSet, suggestNextLinearLoad } from "./lib/progression/linear";
+import { linearHintForExercise } from "./lib/progression/hintForExercise";
 import { applyPresetToCatalog } from "./lib/presets/applyPreset";
+import { clampUserSettings, mergeUserSettings } from "./lib/settings";
 import { blockForExercise, sessionsForExercise } from "./lib/sessions";
 import { loadAppState, saveAppState } from "./storage/state";
-import type { AppStateV2, Equipment, Exercise, SessionBlock, SetEntry } from "./types/domain";
+import type {
+  AppStateV2,
+  Equipment,
+  Exercise,
+  SessionBlock,
+  SetEntry,
+  UserSettings,
+} from "./types/domain";
 import type { WorkoutPresetDefinition } from "./types/preset";
 import "./App.css";
 
@@ -15,9 +23,6 @@ const EQUIPMENT: { value: Equipment; label: string }[] = [
   { value: "bodyweight", label: "Bodyweight" },
   { value: "other", label: "Other" },
 ];
-
-const DEFAULT_INCREMENT = 5;
-const DEFAULT_TARGET_REPS = 5;
 
 type DraftSet = { weight: string; reps: string };
 
@@ -80,6 +85,23 @@ export function App(): ReactElement {
   const exercisesSorted = useMemo(
     () => [...state.exercises].sort((a, b) => a.name.localeCompare(b.name)),
     [state.exercises],
+  );
+
+  const settings = useMemo(() => mergeUserSettings(state), [state]);
+
+  const patchSettings = (partial: Partial<UserSettings>) => {
+    persist((prev) => ({
+      ...prev,
+      settings: { ...mergeUserSettings(prev), ...clampUserSettings(partial) },
+    }));
+  };
+
+  const blockHints = useMemo(
+    () =>
+      draftBlocks.map((b) =>
+        b.exerciseId ? linearHintForExercise(b.exerciseId, state.sessions, settings) : null,
+      ),
+    [draftBlocks, state.sessions, settings],
   );
 
   const loadPreset = (preset: WorkoutPresetDefinition) => {
@@ -175,23 +197,6 @@ export function App(): ReactElement {
     return sessionsForExercise(state.sessions, historyExerciseId);
   }, [state.sessions, historyExerciseId]);
 
-  const hintExerciseId = draftBlocks.find((b) => b.exerciseId)?.exerciseId ?? "";
-
-  const linearHint = useMemo(() => {
-    if (!hintExerciseId) return null;
-    const hist = sessionsForExercise(state.sessions, hintExerciseId);
-    const last = hist[0];
-    if (!last) return null;
-    const block = blockForExercise(last, hintExerciseId);
-    if (!block || block.sets.length === 0) return null;
-    const top = pickTopSet(block.sets);
-    return suggestNextLinearLoad({
-      lastTopSet: top,
-      increment: DEFAULT_INCREMENT,
-      targetReps: DEFAULT_TARGET_REPS,
-    });
-  }, [state.sessions, hintExerciseId]);
-
   const updateDraftSet = (
     blockIndex: number,
     setIndex: number,
@@ -253,6 +258,10 @@ export function App(): ReactElement {
         <h1 className="title">Workout Tracker</h1>
         <p className="subtitle">
           Presets, exercises, multi-lift sessions. Data stays on this device.
+        </p>
+        <p className="disclaimer-inline" role="note">
+          <strong>Not medical advice.</strong> Consult a professional for injury or health concerns.
+          Suggestions are algorithmic — adjust for how you feel.
         </p>
       </header>
 
@@ -323,6 +332,58 @@ export function App(): ReactElement {
           </form>
         </section>
 
+        <section className="card" aria-labelledby="settings-heading">
+          <h2 id="settings-heading" className="card-title">
+            Training settings
+          </h2>
+          <p className="preset-intro">
+            Used for labels and linear load suggestions. Weights are stored as you enter them (no
+            unit conversion).
+          </p>
+          <div className="form row-inline">
+            <label className="field">
+              <span className="label">Weight unit</span>
+              <select
+                className="input"
+                value={settings.weightUnit}
+                onChange={(ev) =>
+                  patchSettings({ weightUnit: ev.target.value as UserSettings["weightUnit"] })
+                }
+              >
+                <option value="lb">lb</option>
+                <option value="kg">kg</option>
+              </select>
+            </label>
+            <label className="field">
+              <span className="label">Linear increment</span>
+              <input
+                className="input input-narrow"
+                type="number"
+                min={0.5}
+                step={0.5}
+                value={settings.linearIncrement}
+                onChange={(ev) =>
+                  patchSettings({ linearIncrement: Number.parseFloat(ev.target.value) })
+                }
+              />
+            </label>
+            <label className="field">
+              <span className="label">Target reps (linear)</span>
+              <input
+                className="input input-narrow"
+                type="number"
+                min={1}
+                max={100}
+                step={1}
+                value={settings.targetReps}
+                onChange={(ev) =>
+                  patchSettings({ targetReps: Number.parseInt(ev.target.value, 10) })
+                }
+              />
+            </label>
+          </div>
+        </section>
+
         <section className="card" aria-labelledby="log-heading">
           <h2 id="log-heading" className="card-title">
             Log session
@@ -382,7 +443,7 @@ export function App(): ReactElement {
                     </select>
                   </label>
                   <fieldset className="fieldset">
-                    <legend className="label">Sets</legend>
+                    <legend className="label">Sets · weight ({settings.weightUnit})</legend>
                     {block.sets.map((row, i) => (
                       <div key={i} className="set-row">
                         <input
@@ -422,22 +483,18 @@ export function App(): ReactElement {
                       Add set
                     </button>
                   </fieldset>
+                  {blockHints[blockIndex] ? (
+                    <p className="hint hint-block" role="status">
+                      <strong>Suggested (algorithm, not medical advice):</strong>{" "}
+                      {blockHints[blockIndex]?.reason}
+                    </p>
+                  ) : null}
                 </div>
               ))}
 
               <button type="button" className="btn btn-secondary" onClick={addSessionBlock}>
                 Add exercise to session
               </button>
-
-              {linearHint ? (
-                <p className="hint" role="status">
-                  <strong>
-                    Suggested (first exercise in list, linear {DEFAULT_INCREMENT} lb /{" "}
-                    {DEFAULT_TARGET_REPS} reps):
-                  </strong>{" "}
-                  {linearHint.reason}
-                </p>
-              ) : null}
               <label className="field field-grow">
                 <span className="label">Session notes (optional)</span>
                 <textarea
@@ -517,6 +574,14 @@ export function App(): ReactElement {
           )}
         </section>
       </main>
+
+      <footer className="app-footer">
+        <p className="disclaimer-footer">
+          This app does not diagnose, treat, or prevent disease. Load and rep suggestions are rough
+          estimates from your logged history — always prioritize form, pain-free range of motion,
+          and your coach or clinician’s guidance.
+        </p>
+      </footer>
     </div>
   );
 }

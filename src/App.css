@@ -21,6 +21,18 @@
   font-size: 0.95rem;
 }
 
+.disclaimer-inline {
+  margin: 0.75rem 0 0;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 52ch;
+}
+
+.disclaimer-inline strong {
+  color: var(--text);
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -249,6 +261,23 @@
   background: var(--bg);
   border-radius: 8px;
   border: 1px dashed var(--border);
+}
+
+.hint-block {
+  margin-top: 0.65rem;
+}
+
+.app-footer {
+  max-width: 720px;
+  margin: 2rem auto 0;
+  padding: 0 1rem 2rem;
+}
+
+.disclaimer-footer {
+  margin: 0;
+  font-size: 0.78rem;
+  line-height: 1.5;
+  color: var(--muted);
 }
 
 .muted {

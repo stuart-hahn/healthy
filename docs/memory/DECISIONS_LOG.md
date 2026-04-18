@@ -9,3 +9,4 @@ Use for **quick** entries; promote important items to `docs/decisions/` as ADRs.
 | 2026-04-18 | v2 storage, v1 migration, sets UI, linear helpers   | `docs/context/PROJECT_CONTEXT.md`                          |
 | 2026-04-18 | Bundled workout presets + load / step flow          | `src/data/presets.ts`, `docs/context/PROJECT_CONTEXT.md`   |
 | 2026-04-18 | Multi-exercise session log + preset fills all lifts | `src/App.tsx`, `docs/context/PROJECT_CONTEXT.md`           |
+| 2026-04-18 | nextpr skill for option-first roadmap               | `skills/nextpr/SKILL.md`                                   |

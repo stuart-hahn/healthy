@@ -20,6 +20,8 @@ describe("loadAppState", () => {
     expect(s.version).toBe(2);
     expect(s.exercises).toEqual([]);
     expect(s.sessions).toEqual([]);
+    expect(s.settings?.linearIncrement).toBe(5);
+    expect(s.settings?.weightUnit).toBe("lb");
     expect(mem[STORAGE_KEY_V2]).toBeDefined();
   });
 

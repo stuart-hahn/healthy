@@ -31,6 +31,17 @@ describe("suggestNextLinearLoad", () => {
     expect(out).not.toBeNull();
     expect(out?.weight).toBe(140);
     expect(out?.reason).toMatch(/140/);
+    expect(out?.reason).toMatch(/lb/);
+  });
+
+  it("uses unitLabel in reason", () => {
+    const out = suggestNextLinearLoad({
+      lastTopSet: { weight: 60, reps: 5 },
+      increment: 2.5,
+      targetReps: 5,
+      unitLabel: "kg",
+    });
+    expect(out?.reason).toMatch(/kg/);
   });
 });
 

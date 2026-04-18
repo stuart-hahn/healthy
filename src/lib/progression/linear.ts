@@ -10,6 +10,8 @@ export type LinearSuggestionInput = {
   increment: number;
   /** Rep target to earn a load increase. */
   targetReps: number;
+  /** Display suffix for weights in `reason` (e.g. lb, kg). */
+  unitLabel?: string;
 };
 
 export type LinearSuggestion = {
@@ -22,14 +24,15 @@ export type LinearSuggestion = {
  * Otherwise return null (double progression / add reps first can come later).
  */
 export function suggestNextLinearLoad(input: LinearSuggestionInput): LinearSuggestion | null {
-  const { lastTopSet, increment, targetReps } = input;
+  const { lastTopSet, increment, targetReps, unitLabel = "lb" } = input;
   if (!lastTopSet || increment <= 0 || targetReps <= 0) return null;
   if (lastTopSet.weight < 0 || lastTopSet.reps < 0) return null;
   if (lastTopSet.reps < targetReps) return null;
 
+  const u = unitLabel;
   return {
     weight: lastTopSet.weight + increment,
-    reason: `Hit ${targetReps}+ reps at ${lastTopSet.weight} — try ${lastTopSet.weight + increment} next time.`,
+    reason: `Hit ${targetReps}+ reps at ${lastTopSet.weight} ${u} — try ${lastTopSet.weight + increment} ${u} next time.`,
   };
 }
 

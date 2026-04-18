@@ -36,8 +36,20 @@ export type TrainingSession = {
   blocks: SessionBlock[];
 };
 
+/** Training preferences (stored with app state). */
+export type UserSettings = {
+  /** Display / entry convention for load; stored numbers are not converted. */
+  weightUnit: "lb" | "kg";
+  /** Smallest jump for linear “add load” suggestions. */
+  linearIncrement: number;
+  /** Reps at or above this on the top set unlock a load bump in the simple linear rule. */
+  targetReps: number;
+};
+
 export type AppStateV2 = {
   version: 2;
   exercises: Exercise[];
   sessions: TrainingSession[];
+  /** Optional for older saves; merged with defaults on load. */
+  settings?: Partial<UserSettings>;
 };
