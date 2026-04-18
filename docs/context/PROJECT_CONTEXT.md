@@ -13,7 +13,7 @@
 - **Runtime**: **React** SPA (**Vite**), **TypeScript**, **nginx** static deploy via `Dockerfile`.
 - **Data (implemented)**: **`workout-tracker:v2`** in `localStorage` — `AppStateV2`: `exercises[]` (id, name, equipment, createdAt) and `sessions[]` (date, notes, `blocks[]` with `sets[]` of weight/reps/optional RPE). **v1** flat arrays migrate on first load; v1 key left in place for safety.
 - **Domain logic**: **Pure functions** in `src/lib/progression/` (linear suggestion + `pickTopSet`); session helpers in `src/lib/sessions.ts`.
-- **Presets**: Not yet — bundled JSON/TS templates next milestone.
+- **Presets**: Bundled in `src/data/presets.ts` (`BUNDLED_PRESETS`). Loading a preset merges exercises into the catalog (by normalized name) and walks the user through each movement with prefilled set × rep rows; advance after each **Save session**.
 - **Boundaries**: No backend required for core MVP; future sync/API is opt-in and ADR’d.
 
 ## Conventions

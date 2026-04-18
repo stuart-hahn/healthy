@@ -1,8 +1,11 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
+import { BUNDLED_PRESETS } from "./data/presets";
 import { pickTopSet, suggestNextLinearLoad } from "./lib/progression/linear";
+import { applyPresetToCatalog } from "./lib/presets/applyPreset";
 import { blockForExercise, sessionsForExercise } from "./lib/sessions";
 import { loadAppState, saveAppState } from "./storage/state";
 import type { AppStateV2, Equipment, Exercise, SetEntry } from "./types/domain";
+import type { WorkoutPresetDefinition } from "./types/preset";
 import "./App.css";
 
 const EQUIPMENT: { value: Equipment; label: string }[] = [
@@ -17,6 +20,19 @@ const DEFAULT_INCREMENT = 5;
 const DEFAULT_TARGET_REPS = 5;
 
 type DraftSet = { weight: string; reps: string };
+
+type ActivePresetState = {
+  preset: WorkoutPresetDefinition;
+  exerciseIds: string[];
+  stepIndex: number;
+};
+
+function draftRowsFromMovement(m: { sets: number; reps: number }): DraftSet[] {
+  return Array.from({ length: m.sets }, () => ({
+    weight: "",
+    reps: String(m.reps),
+  }));
+}
 
 function parseDraftSets(rows: DraftSet[]): SetEntry[] {
   const out: SetEntry[] = [];
@@ -53,10 +69,38 @@ export function App(): ReactElement {
 
   const [historyExerciseId, setHistoryExerciseId] = useState("");
 
+  const [activePreset, setActivePreset] = useState<ActivePresetState | null>(null);
+
   const exercisesSorted = useMemo(
     () => [...state.exercises].sort((a, b) => a.name.localeCompare(b.name)),
     [state.exercises],
   );
+
+  const loadPreset = (preset: WorkoutPresetDefinition) => {
+    const { next, exerciseIds } = applyPresetToCatalog(state, preset);
+    const firstId = exerciseIds[0];
+    const firstMov = preset.movements[0];
+    if (!firstId || !firstMov) return;
+    persist(next);
+    setActivePreset({ preset, exerciseIds, stepIndex: 0 });
+    setLogExerciseId(firstId);
+    setDraftSets(draftRowsFromMovement(firstMov));
+    setLogNotes("");
+    setHistoryExerciseId((h) => h || firstId);
+  };
+
+  const exitPreset = () => {
+    setActivePreset(null);
+  };
+
+  const onLogExerciseChange = (value: string) => {
+    setLogExerciseId(value);
+    if (!activePreset) return;
+    const expected = activePreset.exerciseIds[activePreset.stepIndex];
+    if (value && expected && value !== expected) {
+      setActivePreset(null);
+    }
+  };
 
   const addExercise = (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +147,24 @@ export function App(): ReactElement {
       ],
     });
     setLogNotes("");
-    setDraftSets([{ weight: "", reps: "" }]);
+
+    if (activePreset) {
+      if (activePreset.stepIndex < activePreset.preset.movements.length - 1) {
+        const nextIdx = activePreset.stepIndex + 1;
+        const nextId = activePreset.exerciseIds[nextIdx];
+        const nextMov = activePreset.preset.movements[nextIdx];
+        if (nextId && nextMov) {
+          setActivePreset({ ...activePreset, stepIndex: nextIdx });
+          setLogExerciseId(nextId);
+          setDraftSets(draftRowsFromMovement(nextMov));
+        }
+      } else {
+        setActivePreset(null);
+        setDraftSets([{ weight: "", reps: "" }]);
+      }
+    } else {
+      setDraftSets([{ weight: "", reps: "" }]);
+    }
   };
 
   const removeSession = (sessionId: string) => {
@@ -152,12 +213,36 @@ export function App(): ReactElement {
     <div className="layout">
       <header className="header">
         <h1 className="title">Workout Tracker</h1>
-        <p className="subtitle">
-          Foundation: exercises, sessions, sets. Data stays on this device.
-        </p>
+        <p className="subtitle">Presets, exercises, sessions, sets. Data stays on this device.</p>
       </header>
 
       <main className="main">
+        <section className="card" aria-labelledby="presets-heading">
+          <h2 id="presets-heading" className="card-title">
+            Presets
+          </h2>
+          <p className="preset-intro">
+            Load a template to add exercises and step through lifts with target sets × reps.
+          </p>
+          <ul className="preset-list">
+            {BUNDLED_PRESETS.map((p) => (
+              <li key={p.id} className="preset-card">
+                <div className="preset-card-main">
+                  <div className="preset-card-title">{p.name}</div>
+                  <p className="preset-card-desc">{p.shortDescription}</p>
+                  <p className="preset-card-meta">
+                    {p.movements.length} exercises ·{" "}
+                    {p.movements.map((m) => `${m.sets}×${m.reps}`).join(", ")}
+                  </p>
+                </div>
+                <button type="button" className="btn btn-primary" onClick={() => loadPreset(p)}>
+                  Load preset
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+
         <section className="card" aria-labelledby="exercise-heading">
           <h2 id="exercise-heading" className="card-title">
             Exercises
@@ -202,15 +287,26 @@ export function App(): ReactElement {
             Log session
           </h2>
           {exercisesSorted.length === 0 ? (
-            <p className="empty">Add an exercise above first.</p>
+            <p className="empty">Load a preset or add an exercise above.</p>
           ) : (
             <form className="form" onSubmit={logSession}>
+              {activePreset ? (
+                <div className="preset-banner" role="status">
+                  <span>
+                    Preset: <strong>{activePreset.preset.name}</strong> — exercise{" "}
+                    {activePreset.stepIndex + 1} of {activePreset.preset.movements.length}
+                  </span>
+                  <button type="button" className="btn btn-ghost" onClick={exitPreset}>
+                    Exit preset
+                  </button>
+                </div>
+              ) : null}
               <label className="field">
                 <span className="label">Exercise</span>
                 <select
                   className="input"
                   value={logExerciseId}
-                  onChange={(ev) => setLogExerciseId(ev.target.value)}
+                  onChange={(ev) => onLogExerciseChange(ev.target.value)}
                   required
                 >
                   <option value="" disabled>
