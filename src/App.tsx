@@ -19,7 +19,15 @@ import {
 } from "./lib/liftTrends";
 import { formatSecondsAsMmSs } from "./lib/restTimerFormat";
 import { formatTopSetPrNote } from "./lib/topSetPr";
-import { buildExportEnvelope, parseImportedAppState } from "./storage/importExport";
+import {
+  buildExportEnvelope,
+  describeAppStateCounts,
+  EXPORT_ENVELOPE_VERSION,
+  EXPORT_FORMAT,
+  formatExportTimestampForDisplay,
+  parseImportedAppState,
+} from "./storage/importExport";
+import { LAST_EXPORT_AT_KEY } from "./storage/constants";
 import { loadAppState, saveAppState } from "./storage/state";
 import type {
   AppStateV2,
@@ -36,6 +44,17 @@ import "./App.css";
 
 const REST_SECONDS_DEFAULT_KEY = "workout-tracker:rest-seconds-default";
 const REST_PRESET_SEC = [60, 90, 120, 180] as const;
+
+function readLastExportAtFromStorage(): string | null {
+  try {
+    const raw = localStorage.getItem(LAST_EXPORT_AT_KEY);
+    if (!raw) return null;
+    if (Number.isNaN(new Date(raw).getTime())) return null;
+    return raw;
+  } catch {
+    return null;
+  }
+}
 
 function readRestSecondsDefault(): number {
   try {
@@ -193,6 +212,11 @@ export function App(): ReactElement {
   const sessionHistorySectionRef = useRef<HTMLElement | null>(null);
   const historyByExerciseSectionRef = useRef<HTMLElement | null>(null);
 
+  const [lastExportAtIso, setLastExportAtIso] = useState<string | null>(() =>
+    readLastExportAtFromStorage(),
+  );
+  const [backupImportMessage, setBackupImportMessage] = useState<string | null>(null);
+
   type RestPhase = "idle" | "running" | "paused" | "done";
   const [restPhase, setRestPhase] = useState<RestPhase>("idle");
   const [restPickSeconds, setRestPickSeconds] = useState(() => readRestSecondsDefault());
@@ -278,6 +302,10 @@ export function App(): ReactElement {
     return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [state.templates]);
 
+  const backupExportReminder = !lastExportAtIso
+    ? "No JSON export recorded in this browser yet — export occasionally so you don't lose data if this profile is cleared."
+    : null;
+
   const settings = useMemo(() => mergeUserSettings(state), [state]);
 
   const patchSettings = (partial: Partial<UserSettings>) => {
@@ -300,6 +328,14 @@ export function App(): ReactElement {
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
+    const now = new Date().toISOString();
+    try {
+      localStorage.setItem(LAST_EXPORT_AT_KEY, now);
+    } catch {
+      /* ignore quota / private mode */
+    }
+    setLastExportAtIso(now);
+    setBackupImportMessage(null);
   }, [state]);
 
   const onImportBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -320,15 +356,31 @@ export function App(): ReactElement {
           window.alert(result.error);
           return;
         }
-        const ok = window.confirm(
-          "Replace all exercises and sessions on this device with this backup? This cannot be undone.",
-        );
+        const summary = describeAppStateCounts(result.state);
+        const confirmLines = result.envelope
+          ? [
+              `This file contains ${summary}.`,
+              `Exported ${formatExportTimestampForDisplay(result.envelope.exportedAt)} · ${EXPORT_FORMAT} envelope v${result.envelope.version}`,
+              "",
+              "Replace all exercises, sessions, and templates on this device? This cannot be undone.",
+            ]
+          : [
+              `This file contains ${summary}.`,
+              "(Raw v2 state — no export timestamp in file.)",
+              "",
+              "Replace all exercises, sessions, and templates on this device? This cannot be undone.",
+            ];
+        const ok = window.confirm(confirmLines.join("\n"));
         if (!ok) return;
         persist(() => result.state);
         setDraftBlocks([emptyDraftBlock()]);
         setLogNotes("");
         setPresetBanner(null);
         setHistoryExerciseId(result.state.exercises[0]?.id ?? "");
+        const importedNote = result.envelope
+          ? `Import complete: ${summary}. File had been exported ${formatExportTimestampForDisplay(result.envelope.exportedAt)}.`
+          : `Import complete: ${summary}.`;
+        setBackupImportMessage(importedNote);
       } catch {
         window.alert("File is not valid JSON.");
       }
@@ -908,6 +960,24 @@ export function App(): ReactElement {
             Download a JSON file to back up this device&apos;s data, or choose a file to replace
             everything stored here. Imports are validated; replacing data cannot be undone.
           </p>
+          <ul className="backup-meta-list" aria-label="Backup details">
+            <li>
+              <strong>File format:</strong> <code className="backup-code">{EXPORT_FORMAT}</code> ·
+              envelope v{EXPORT_ENVELOPE_VERSION}
+            </li>
+            <li>
+              <strong>On this device now:</strong> {describeAppStateCounts(state)}
+            </li>
+            <li>
+              <strong>Last export in this browser:</strong>{" "}
+              {lastExportAtIso ? formatExportTimestampForDisplay(lastExportAtIso) : "—"}
+            </li>
+          </ul>
+          {backupExportReminder ? (
+            <p className="backup-reminder" role="status">
+              {backupExportReminder}
+            </p>
+          ) : null}
           <div className="backup-actions">
             <button type="button" className="btn btn-secondary" onClick={exportBackup}>
               Export JSON
@@ -928,6 +998,18 @@ export function App(): ReactElement {
               onChange={onImportBackupFile}
             />
           </div>
+          {backupImportMessage ? (
+            <div className="backup-import-banner" role="status">
+              <span>{backupImportMessage}</span>
+              <button
+                type="button"
+                className="btn btn-ghost"
+                onClick={() => setBackupImportMessage(null)}
+              >
+                Dismiss
+              </button>
+            </div>
+          ) : null}
         </section>
 
         <section className="card" aria-labelledby="log-heading">

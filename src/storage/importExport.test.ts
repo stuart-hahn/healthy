@@ -4,8 +4,10 @@ import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   buildExportEnvelope,
+  describeAppStateCounts,
   EXPORT_ENVELOPE_VERSION,
   EXPORT_FORMAT,
+  formatExportTimestampForDisplay,
   parseImportedAppState,
   validateAppStateV2Deep,
 } from "./importExport";
@@ -112,11 +114,15 @@ describe("parseImportedAppState", () => {
     expect(result.state.exercises).toHaveLength(1);
     expect(result.state.settings?.weightUnit).toBe("kg");
     expect(result.state.settings?.maxRpeForLoadIncrease).toBe(6);
+    expect(result.envelope?.version).toBe(EXPORT_ENVELOPE_VERSION);
+    expect(result.envelope?.exportedAt).toBe(env.exportedAt);
   });
 
   it("parses raw v2 state without envelope", () => {
     const result = parseImportedAppState(minimalValid);
     expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.envelope).toBeUndefined();
   });
 
   it("rejects unknown envelope format", () => {
@@ -168,6 +174,21 @@ describe("parseImportedAppState", () => {
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.settings?.maxRpeForLoadIncrease).toBe(7);
+  });
+});
+
+describe("describeAppStateCounts", () => {
+  it("lists counts with plural labels", () => {
+    expect(describeAppStateCounts(minimalValid)).toBe("1 exercise, 1 session, 1 template");
+    const empty: AppStateV2 = { version: 2, exercises: [], sessions: [] };
+    expect(describeAppStateCounts(empty)).toBe("0 exercises, 0 sessions, 0 templates");
+  });
+});
+
+describe("formatExportTimestampForDisplay", () => {
+  it("formats ISO strings", () => {
+    const s = formatExportTimestampForDisplay("2026-04-01T12:00:00.000Z");
+    expect(s.length).toBeGreaterThan(4);
   });
 });
 

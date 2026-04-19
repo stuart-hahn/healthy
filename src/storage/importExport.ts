@@ -22,7 +22,42 @@ export type ExportEnvelopeV1 = {
   state: AppStateV2;
 };
 
-export type ImportResult = { ok: true; state: AppStateV2 } | { ok: false; error: string };
+type AppStateCounts = {
+  exercises: number;
+  sessions: number;
+  templates: number;
+};
+
+function countAppState(state: AppStateV2): AppStateCounts {
+  return {
+    exercises: state.exercises.length,
+    sessions: state.sessions.length,
+    templates: state.templates?.length ?? 0,
+  };
+}
+
+/** Human-readable "N exercises, …" (Oxford-style list). */
+export function describeAppStateCounts(state: AppStateV2): string {
+  const { exercises, sessions, templates } = countAppState(state);
+  return `${exercises} ${exercises === 1 ? "exercise" : "exercises"}, ${sessions} ${
+    sessions === 1 ? "session" : "sessions"
+  }, ${templates} ${templates === 1 ? "template" : "templates"}`;
+}
+
+export function formatExportTimestampForDisplay(iso: string): string {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return iso;
+  return d.toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+}
+
+export type ImportOk = {
+  ok: true;
+  state: AppStateV2;
+  /** Present when file was a wrapped `ExportEnvelopeV1`. */
+  envelope?: { exportedAt: string; version: number };
+};
+
+export type ImportResult = ImportOk | { ok: false; error: string };
 
 const EQUIPMENT: Equipment[] = ["barbell", "dumbbell", "machine", "bodyweight", "other"];
 const EQUIPMENT_SET = new Set<Equipment>(EQUIPMENT);
@@ -258,7 +293,11 @@ export function parseImportedAppState(raw: unknown): ImportResult {
       if (!inner) {
         return { ok: false, error: "Export file contains invalid workout data." };
       }
-      return { ok: true, state: snapshotAppState(inner) };
+      return {
+        ok: true,
+        state: snapshotAppState(inner),
+        envelope: { exportedAt: o.exportedAt, version: EXPORT_ENVELOPE_VERSION },
+      };
     }
   }
 
