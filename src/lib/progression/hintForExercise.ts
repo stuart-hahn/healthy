@@ -5,7 +5,7 @@ import { LINEAR_RULE_HINT, pickTopSet, suggestNextLinearLoad } from "./linear";
 export type LinearHintUi = {
   /** Actionable line (what to try next, or what to do before loading up) */
   primary: string;
-  /** One-line rule transparency (option C / coaching UX) */
+  /** Full linear-rule + RPE-gate copy; UI shows behind “Why this suggestion?” disclosure. */
   rule: string;
   /** Target top-set weight when the linear rule applies (higher load, or same load for RPE hold). */
   nextWeight: number | null;

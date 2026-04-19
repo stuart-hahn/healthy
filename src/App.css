@@ -778,3 +778,29 @@
   line-height: 1.4;
   color: var(--muted);
 }
+
+.hint-rule-disclosure {
+  margin: 0.35rem 0 0;
+}
+
+.hint-rule-summary {
+  cursor: pointer;
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.hint-rule-summary-note {
+  font-weight: 500;
+  color: var(--muted);
+}
+
+.hint-rule-disclosure-body {
+  margin-top: 0.35rem;
+  padding-left: 0.5rem;
+  border-left: 2px solid var(--border);
+}
+
+.hint-rule-disclosure-body .hint-rule {
+  margin: 0;
+}

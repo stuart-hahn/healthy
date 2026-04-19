@@ -175,6 +175,20 @@ function draftBlocksFromSession(session: TrainingSession, exercises: Exercise[])
   return out;
 }
 
+/** Expandable linear-rule explanation (same disclosure in log form and post-save summary). */
+function LinearHintRuleDisclosure({ rule }: { rule: string }): ReactElement {
+  return (
+    <details className="hint-rule-disclosure">
+      <summary className="hint-rule-summary">
+        Why this suggestion? <span className="hint-rule-summary-note">(algorithmic)</span>
+      </summary>
+      <div className="hint-rule-disclosure-body">
+        <p className="hint-rule">{rule}</p>
+      </div>
+    </details>
+  );
+}
+
 export function App(): ReactElement {
   const [state, setState] = useState<AppStateV2>(() => loadAppState());
 
@@ -746,7 +760,7 @@ export function App(): ReactElement {
                           <strong>Suggested · from your history (not medical advice):</strong>{" "}
                           {nextHint.primary}
                         </p>
-                        <p className="hint-rule">{nextHint.rule}</p>
+                        <LinearHintRuleDisclosure rule={nextHint.rule} />
                       </div>
                     ) : null}
                     <div className="save-summary-item-actions">
@@ -1159,87 +1173,92 @@ export function App(): ReactElement {
                 </div>
               </div>
 
-              {draftBlocks.map((block, blockIndex) => (
-                <div key={blockIndex} className="session-block">
-                  <div className="session-block-head">
-                    <h3 className="session-block-title">Exercise {blockIndex + 1}</h3>
-                    {draftBlocks.length > 1 ? (
-                      <button
-                        type="button"
-                        className="btn btn-ghost"
-                        onClick={() => removeSessionBlock(blockIndex)}
-                      >
-                        Remove exercise
-                      </button>
-                    ) : null}
-                  </div>
-                  <label className="field">
-                    <span className="label">Exercise</span>
-                    <select
-                      className="input"
-                      value={block.exerciseId}
-                      onChange={(ev) => setBlockExercise(blockIndex, ev.target.value)}
-                    >
-                      <option value="">Select…</option>
-                      {exercisesSorted.map((ex) => (
-                        <option key={ex.id} value={ex.id}>
-                          {ex.name}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
-                  <fieldset className="fieldset">
-                    <legend className="label">Sets · weight ({settings.weightUnit})</legend>
-                    {block.sets.map((row, i) => (
-                      <div key={i} className="set-row">
-                        <input
-                          className="input input-narrow"
-                          inputMode="decimal"
-                          placeholder="Weight"
-                          aria-label={`Exercise ${blockIndex + 1} set ${i + 1} weight`}
-                          value={row.weight}
-                          onChange={(ev) =>
-                            updateDraftSet(blockIndex, i, "weight", ev.target.value)
-                          }
-                        />
-                        <span className="set-sep">×</span>
-                        <input
-                          className="input input-narrow"
-                          inputMode="numeric"
-                          placeholder="Reps"
-                          aria-label={`Exercise ${blockIndex + 1} set ${i + 1} reps`}
-                          value={row.reps}
-                          onChange={(ev) => updateDraftSet(blockIndex, i, "reps", ev.target.value)}
-                        />
+              {draftBlocks.map((block, blockIndex) => {
+                const hint = blockHints[blockIndex];
+                return (
+                  <div key={blockIndex} className="session-block">
+                    <div className="session-block-head">
+                      <h3 className="session-block-title">Exercise {blockIndex + 1}</h3>
+                      {draftBlocks.length > 1 ? (
                         <button
                           type="button"
                           className="btn btn-ghost"
-                          onClick={() => removeSetRow(blockIndex, i)}
-                          disabled={block.sets.length <= 1}
+                          onClick={() => removeSessionBlock(blockIndex)}
                         >
-                          Remove
+                          Remove exercise
                         </button>
-                      </div>
-                    ))}
-                    <button
-                      type="button"
-                      className="btn btn-secondary"
-                      onClick={() => addSetRow(blockIndex)}
-                    >
-                      Add set
-                    </button>
-                  </fieldset>
-                  {blockHints[blockIndex] ? (
-                    <div className="hint hint-block">
-                      <p className="hint-primary" role="status">
-                        <strong>Suggested · from your history (not medical advice):</strong>{" "}
-                        {blockHints[blockIndex]?.primary}
-                      </p>
-                      <p className="hint-rule">{blockHints[blockIndex]?.rule}</p>
+                      ) : null}
                     </div>
-                  ) : null}
-                </div>
-              ))}
+                    <label className="field">
+                      <span className="label">Exercise</span>
+                      <select
+                        className="input"
+                        value={block.exerciseId}
+                        onChange={(ev) => setBlockExercise(blockIndex, ev.target.value)}
+                      >
+                        <option value="">Select…</option>
+                        {exercisesSorted.map((ex) => (
+                          <option key={ex.id} value={ex.id}>
+                            {ex.name}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                    <fieldset className="fieldset">
+                      <legend className="label">Sets · weight ({settings.weightUnit})</legend>
+                      {block.sets.map((row, i) => (
+                        <div key={i} className="set-row">
+                          <input
+                            className="input input-narrow"
+                            inputMode="decimal"
+                            placeholder="Weight"
+                            aria-label={`Exercise ${blockIndex + 1} set ${i + 1} weight`}
+                            value={row.weight}
+                            onChange={(ev) =>
+                              updateDraftSet(blockIndex, i, "weight", ev.target.value)
+                            }
+                          />
+                          <span className="set-sep">×</span>
+                          <input
+                            className="input input-narrow"
+                            inputMode="numeric"
+                            placeholder="Reps"
+                            aria-label={`Exercise ${blockIndex + 1} set ${i + 1} reps`}
+                            value={row.reps}
+                            onChange={(ev) =>
+                              updateDraftSet(blockIndex, i, "reps", ev.target.value)
+                            }
+                          />
+                          <button
+                            type="button"
+                            className="btn btn-ghost"
+                            onClick={() => removeSetRow(blockIndex, i)}
+                            disabled={block.sets.length <= 1}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                      <button
+                        type="button"
+                        className="btn btn-secondary"
+                        onClick={() => addSetRow(blockIndex)}
+                      >
+                        Add set
+                      </button>
+                    </fieldset>
+                    {hint ? (
+                      <div className="hint hint-block">
+                        <p className="hint-primary" role="status">
+                          <strong>Suggested · from your history (not medical advice):</strong>{" "}
+                          {hint.primary}
+                        </p>
+                        <LinearHintRuleDisclosure rule={hint.rule} />
+                      </div>
+                    ) : null}
+                  </div>
+                );
+              })}
 
               <button type="button" className="btn btn-secondary" onClick={addSessionBlock}>
                 Add exercise to session
