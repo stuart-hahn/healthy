@@ -612,6 +612,23 @@ export function App(): ReactElement {
           <strong>Not medical advice.</strong> Consult a professional for injury or health concerns.
           Suggestions are algorithmic — adjust for how you feel.
         </p>
+        <nav className="jump-nav" aria-label="Jump to section">
+          <a className="jump-nav-link" href="#preset-browser">
+            Preset browser
+          </a>
+          <span className="jump-nav-sep" aria-hidden="true">
+            ·
+          </span>
+          <a className="jump-nav-link" href="#log-heading">
+            Log session
+          </a>
+          <span className="jump-nav-sep" aria-hidden="true">
+            ·
+          </span>
+          <a className="jump-nav-link" href="#session-browser-heading">
+            Session history
+          </a>
+        </nav>
       </header>
 
       <main className="main">
@@ -696,15 +713,15 @@ export function App(): ReactElement {
           </section>
         ) : null}
 
-        <section className="card" aria-labelledby="presets-heading">
-          <h2 id="presets-heading" className="card-title">
-            Presets
+        <section id="preset-browser" className="card" aria-labelledby="preset-browser-heading">
+          <h2 id="preset-browser-heading" className="card-title">
+            Preset browser
           </h2>
           <p className="preset-intro">
-            Load a template to add exercises and pre-fill all lifts for one session. Save once when
-            done.
+            Built-in workouts ship with the app. Pick one to add exercises and pre-fill sets and
+            reps for this session — enter weights, then save once.
           </p>
-          <ul className="preset-list">
+          <ul className="preset-list preset-browser-list">
             {BUNDLED_PRESETS.map((p) => (
               <li key={p.id} className="preset-card">
                 <div className="preset-card-main">

@@ -33,6 +33,27 @@
   color: var(--text);
 }
 
+.jump-nav {
+  margin: 0.85rem 0 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.jump-nav-link {
+  color: var(--accent);
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.jump-nav-link:hover {
+  text-decoration: underline;
+}
+
+.jump-nav-sep {
+  color: var(--muted);
+  margin: 0 0.2rem;
+}
+
 .main {
   display: flex;
   flex-direction: column;
@@ -316,6 +337,20 @@
   display: flex;
   flex-direction: column;
   gap: 0.75rem;
+}
+
+@media (min-width: 540px) {
+  .preset-browser-list {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+  }
+}
+
+#preset-browser,
+#log-heading,
+#session-browser-heading {
+  scroll-margin-top: 0.75rem;
 }
 
 .preset-card {
