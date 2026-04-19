@@ -4,6 +4,7 @@ export const DEFAULT_USER_SETTINGS: UserSettings = {
   weightUnit: "lb",
   linearIncrement: 5,
   targetReps: 5,
+  maxRpeForLoadIncrease: 7,
 };
 
 export function mergeUserSettings(state: AppStateV2): UserSettings {
@@ -36,6 +37,14 @@ export function clampUserSettings(partial: Partial<UserSettings>): Partial<UserS
   }
   if (out.weightUnit !== undefined && out.weightUnit !== "lb" && out.weightUnit !== "kg") {
     out.weightUnit = DEFAULT_USER_SETTINGS.weightUnit;
+  }
+  if (out.maxRpeForLoadIncrease !== undefined) {
+    if (!Number.isFinite(out.maxRpeForLoadIncrease)) {
+      out.maxRpeForLoadIncrease = DEFAULT_USER_SETTINGS.maxRpeForLoadIncrease;
+    } else {
+      const t = Math.round(out.maxRpeForLoadIncrease);
+      out.maxRpeForLoadIncrease = Math.min(10, Math.max(1, t));
+    }
   }
   return out;
 }

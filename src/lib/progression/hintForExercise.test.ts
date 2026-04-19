@@ -63,6 +63,7 @@ describe("linearHintUiForExercise", () => {
     expect(h?.loadAction).toBe("hold");
     expect(h?.nextWeight).toBe(100);
     expect(h?.primary).toMatch(/RPE was 9/);
+    expect(h?.rule).toMatch(/below 7/);
   });
 
   it("explains hold when reps below target", () => {

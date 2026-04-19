@@ -47,7 +47,7 @@ const minimalValid: AppStateV2 = {
       blocks: [{ id: "tb-1", exerciseId: "ex-1", exerciseName: "Squat", reps: [5, 5, 5] }],
     },
   ],
-  settings: { weightUnit: "kg", linearIncrement: 2.5, targetReps: 8 },
+  settings: { weightUnit: "kg", linearIncrement: 2.5, targetReps: 8, maxRpeForLoadIncrease: 6 },
 };
 
 describe("validateAppStateV2Deep", () => {
@@ -111,6 +111,7 @@ describe("parseImportedAppState", () => {
     expect(result.state.version).toBe(2);
     expect(result.state.exercises).toHaveLength(1);
     expect(result.state.settings?.weightUnit).toBe("kg");
+    expect(result.state.settings?.maxRpeForLoadIncrease).toBe(6);
   });
 
   it("parses raw v2 state without envelope", () => {
@@ -143,13 +144,30 @@ describe("parseImportedAppState", () => {
   it("clamps bad settings on import", () => {
     const loose: AppStateV2 = {
       ...minimalValid,
-      settings: { linearIncrement: 0.1, targetReps: 500, weightUnit: "lb" },
+      settings: {
+        linearIncrement: 0.1,
+        targetReps: 500,
+        weightUnit: "lb",
+        maxRpeForLoadIncrease: 99,
+      },
     };
     const result = parseImportedAppState(loose);
     expect(result.ok).toBe(true);
     if (!result.ok) return;
     expect(result.state.settings?.linearIncrement).toBe(5);
     expect(result.state.settings?.targetReps).toBe(100);
+    expect(result.state.settings?.maxRpeForLoadIncrease).toBe(10);
+  });
+
+  it("defaults max RPE when omitted in import", () => {
+    const raw: AppStateV2 = {
+      ...minimalValid,
+      settings: { weightUnit: "kg", linearIncrement: 2.5, targetReps: 8 },
+    };
+    const result = parseImportedAppState(raw);
+    expect(result.ok).toBe(true);
+    if (!result.ok) return;
+    expect(result.state.settings?.maxRpeForLoadIncrease).toBe(7);
   });
 });
 

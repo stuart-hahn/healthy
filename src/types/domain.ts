@@ -61,6 +61,11 @@ export type UserSettings = {
   linearIncrement: number;
   /** Reps at or above this on the top set unlock a load bump in the simple linear rule. */
   targetReps: number;
+  /**
+   * When top-set RPE is logged, defer load increase until RPE is at or below this (1–10).
+   * Ignored for suggestions when RPE is not logged on the top set.
+   */
+  maxRpeForLoadIncrease: number;
 };
 
 export type AppStateV2 = {

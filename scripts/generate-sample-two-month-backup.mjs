@@ -214,6 +214,7 @@ const state = {
     weightUnit: "lb",
     linearIncrement: 2.5,
     targetReps: 5,
+    maxRpeForLoadIncrease: 7,
   },
 };
 

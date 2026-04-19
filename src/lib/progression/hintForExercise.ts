@@ -34,6 +34,7 @@ export function linearHintUiForExercise(
     increment: settings.linearIncrement,
     targetReps: settings.targetReps,
     unitLabel,
+    maxRpeForLoadIncrease: settings.maxRpeForLoadIncrease,
   });
   if (suggestion) {
     return {

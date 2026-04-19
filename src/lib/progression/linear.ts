@@ -26,7 +26,9 @@ export const DEFAULT_MAX_RPE_FOR_LOAD_INCREASE = 7;
 export const LINEAR_RULE_HINT =
   "Linear progression: when your heaviest set hits the target rep count, the next load step is your smallest plate increment.";
 
-export const LINEAR_RPE_GATE_HINT = `When the top set includes RPE, a load increase waits until that RPE is at or below ${DEFAULT_MAX_RPE_FOR_LOAD_INCREASE} (suggestive — adjust for how you feel).`;
+export function linearRpeGateHint(maxRpeForLoadIncrease: number): string {
+  return `When the top set includes RPE, a load increase waits until that RPE is at or below ${maxRpeForLoadIncrease} (suggestive — adjust for how you feel).`;
+}
 
 export type LinearSuggestion = {
   weight: number;
@@ -71,7 +73,7 @@ export function suggestNextLinearLoad(input: LinearSuggestionInput): LinearSugge
       weight: lastTopSet.weight,
       loadAction: "hold",
       reason: `Hit ${targetReps}+ reps at ${lastTopSet.weight} ${u}, but top-set RPE was ${rpe}. Stay at ${lastTopSet.weight} ${u} next time — try a load bump when top-set RPE is ${maxRpeForLoadIncrease} or below.`,
-      ruleHint: `${LINEAR_RULE_HINT} ${LINEAR_RPE_GATE_HINT}`,
+      ruleHint: `${LINEAR_RULE_HINT} ${linearRpeGateHint(maxRpeForLoadIncrease)}`,
     };
   }
 

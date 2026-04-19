@@ -163,6 +163,9 @@ function parseSettingsPartial(raw: unknown): Partial<UserSettings> | undefined {
   if (typeof o.targetReps === "number" && Number.isFinite(o.targetReps)) {
     out.targetReps = o.targetReps;
   }
+  if (typeof o.maxRpeForLoadIncrease === "number" && Number.isFinite(o.maxRpeForLoadIncrease)) {
+    out.maxRpeForLoadIncrease = o.maxRpeForLoadIncrease;
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

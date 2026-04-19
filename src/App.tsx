@@ -823,7 +823,7 @@ export function App(): ReactElement {
           </h2>
           <p className="preset-intro">
             Used for labels and linear load suggestions. Weights are stored as you enter them (no
-            unit conversion).
+            unit conversion). Max RPE gates load jumps when you log RPE on the top set.
           </p>
           <div className="form row-inline">
             <label className="field">
@@ -863,6 +863,20 @@ export function App(): ReactElement {
                 value={settings.targetReps}
                 onChange={(ev) =>
                   patchSettings({ targetReps: Number.parseInt(ev.target.value, 10) })
+                }
+              />
+            </label>
+            <label className="field">
+              <span className="label">Max RPE for load increase</span>
+              <input
+                className="input input-narrow"
+                type="number"
+                min={1}
+                max={10}
+                step={1}
+                value={settings.maxRpeForLoadIncrease}
+                onChange={(ev) =>
+                  patchSettings({ maxRpeForLoadIncrease: Number.parseInt(ev.target.value, 10) })
                 }
               />
             </label>

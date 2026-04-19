@@ -46,7 +46,27 @@ describe("suggestNextLinearLoad", () => {
     expect(out?.loadAction).toBe("hold");
     expect(out?.weight).toBe(135);
     expect(out?.reason).toMatch(/RPE was 9/);
-    expect(out?.ruleHint).toMatch(/RPE/);
+    expect(out?.ruleHint).toMatch(/below 7/);
+  });
+
+  it("respects custom max RPE for hold vs bump", () => {
+    const hold = suggestNextLinearLoad({
+      lastTopSet: { weight: 100, reps: 5, rpe: 9 },
+      increment: 5,
+      targetReps: 5,
+      maxRpeForLoadIncrease: 8,
+    });
+    expect(hold?.loadAction).toBe("hold");
+    expect(hold?.ruleHint).toMatch(/below 8/);
+
+    const bump = suggestNextLinearLoad({
+      lastTopSet: { weight: 100, reps: 5, rpe: 8 },
+      increment: 5,
+      targetReps: 5,
+      maxRpeForLoadIncrease: 8,
+    });
+    expect(bump?.loadAction).toBe("increment");
+    expect(bump?.weight).toBe(105);
   });
 
   it("still bumps when RPE is at the ceiling", () => {
