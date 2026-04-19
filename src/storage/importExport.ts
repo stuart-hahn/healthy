@@ -201,6 +201,12 @@ function parseSettingsPartial(raw: unknown): Partial<UserSettings> | undefined {
   if (typeof o.maxRpeForLoadIncrease === "number" && Number.isFinite(o.maxRpeForLoadIncrease)) {
     out.maxRpeForLoadIncrease = o.maxRpeForLoadIncrease;
   }
+  if (Array.isArray(o.hintsDisabledExerciseIds)) {
+    const ids = o.hintsDisabledExerciseIds.filter(
+      (x): x is string => typeof x === "string" && x.length > 0,
+    );
+    if (ids.length > 0) out.hintsDisabledExerciseIds = ids;
+  }
   return Object.keys(out).length > 0 ? out : undefined;
 }
 

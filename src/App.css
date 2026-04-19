@@ -102,6 +102,24 @@
   flex: 1;
 }
 
+.field-hint-preference {
+  flex-direction: row;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin: 0.35rem 0 0.15rem;
+}
+
+.field-hint-preference input {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+}
+
+.field-hint-preference span {
+  font-size: 0.88rem;
+  line-height: 1.4;
+  color: var(--muted);
+}
+
 .label {
   font-size: 0.8rem;
   font-weight: 600;
@@ -656,6 +674,20 @@
   color: var(--text);
 }
 
+.backup-reminder--stale {
+  background: rgb(230 240 255 / 0.45);
+}
+
+.backup-copy-feedback {
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.backup-copy-feedback--error {
+  color: var(--text);
+  max-width: 28ch;
+}
+
 .backup-import-banner {
   display: flex;
   flex-wrap: wrap;
@@ -803,4 +835,58 @@
 
 .hint-rule-disclosure-body .hint-rule {
   margin: 0;
+}
+
+/* Log session — narrow viewports: sticky save, larger tap targets */
+@media (max-width: 560px) {
+  .log-session-form {
+    padding-bottom: 5rem;
+  }
+
+  .log-session-form .session-block {
+    padding: 0.75rem 0;
+  }
+
+  .log-session-form .set-row .input {
+    min-height: 44px;
+  }
+
+  .log-session-form .btn:not(.btn-ghost) {
+    min-height: 44px;
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .log-session-form .btn-ghost {
+    min-height: 40px;
+    min-width: 2.75rem;
+  }
+
+  .log-session-save-wrap {
+    position: sticky;
+    bottom: 0;
+    z-index: 4;
+    margin: 1rem -1.25rem -1.25rem;
+    padding: 0.75rem 1.25rem calc(0.85rem + env(safe-area-inset-bottom, 0px));
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 0 0 var(--radius) var(--radius);
+    box-shadow: 0 -8px 24px rgb(0 0 0 / 0.14);
+  }
+
+  .log-session-save-actions {
+    justify-content: stretch;
+    width: 100%;
+  }
+
+  .btn-save-session {
+    width: 100%;
+    min-height: 48px;
+    font-size: 1.02rem;
+    touch-action: manipulation;
+  }
+
+  .log-session-form .rest-timer .btn {
+    touch-action: manipulation;
+  }
 }

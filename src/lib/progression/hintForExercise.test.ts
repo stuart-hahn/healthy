@@ -66,6 +66,31 @@ describe("linearHintUiForExercise", () => {
     expect(h?.rule).toMatch(/below 7/);
   });
 
+  it("returns null when user disabled suggestions for this exercise", () => {
+    const sessions: TrainingSession[] = [
+      {
+        id: "s1",
+        date: "2026-01-01",
+        createdAt: "t",
+        notes: "",
+        blocks: [
+          {
+            id: "b1",
+            exerciseId: "ex-1",
+            exerciseName: "Bench",
+            sets: [{ id: "x", weight: 100, reps: 5 }],
+          },
+        ],
+      },
+    ];
+    expect(
+      linearHintUiForExercise("ex-1", sessions, {
+        ...DEFAULT_USER_SETTINGS,
+        hintsDisabledExerciseIds: ["ex-1"],
+      }),
+    ).toBeNull();
+  });
+
   it("explains hold when reps below target", () => {
     const sessions: TrainingSession[] = [
       {

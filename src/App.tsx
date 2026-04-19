@@ -3,7 +3,7 @@ import { BUNDLED_PRESETS } from "./data/presets";
 import { linearHintUiForExercise, type LinearHintUi } from "./lib/progression/hintForExercise";
 import { buildSessionSaveSummary, type SessionSaveComparison } from "./lib/sessionSaveSummary";
 import { applyPresetToCatalog } from "./lib/presets/applyPreset";
-import { clampUserSettings, mergeUserSettings } from "./lib/settings";
+import { clampUserSettings, mergeUserSettings, normalizeAppStateV2 } from "./lib/settings";
 import {
   blockForExercise,
   mostRecentSession,
@@ -17,6 +17,8 @@ import {
   liftTrendVolumesChronological,
   LIFT_TREND_MAX_ROWS,
 } from "./lib/liftTrends";
+import { backupExportReminder } from "./lib/backupReminders";
+import { buildBackupDeviceSummaryLine } from "./lib/backupSummaryLine";
 import { formatSecondsAsMmSs } from "./lib/restTimerFormat";
 import { formatTopSetPrNote } from "./lib/topSetPr";
 import {
@@ -189,6 +191,25 @@ function LinearHintRuleDisclosure({ rule }: { rule: string }): ReactElement {
   );
 }
 
+function ExerciseLoadHintsPreference({
+  hintsDisabled,
+  onHintsDisabledChange,
+}: {
+  hintsDisabled: boolean;
+  onHintsDisabledChange: (next: boolean) => void;
+}): ReactElement {
+  return (
+    <label className="field field-hint-preference">
+      <input
+        type="checkbox"
+        checked={hintsDisabled}
+        onChange={(ev) => onHintsDisabledChange(ev.target.checked)}
+      />
+      <span>Don&apos;t suggest next-session loads for this exercise</span>
+    </label>
+  );
+}
+
 export function App(): ReactElement {
   const [state, setState] = useState<AppStateV2>(() => loadAppState());
 
@@ -230,6 +251,7 @@ export function App(): ReactElement {
     readLastExportAtFromStorage(),
   );
   const [backupImportMessage, setBackupImportMessage] = useState<string | null>(null);
+  const [copySummaryStatus, setCopySummaryStatus] = useState<"idle" | "copied" | "error">("idle");
 
   type RestPhase = "idle" | "running" | "paused" | "done";
   const [restPhase, setRestPhase] = useState<RestPhase>("idle");
@@ -316,9 +338,7 @@ export function App(): ReactElement {
     return [...list].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
   }, [state.templates]);
 
-  const backupExportReminder = !lastExportAtIso
-    ? "No JSON export recorded in this browser yet — export occasionally so you don't lose data if this profile is cleared."
-    : null;
+  const backupReminder = useMemo(() => backupExportReminder(lastExportAtIso), [lastExportAtIso]);
 
   const settings = useMemo(() => mergeUserSettings(state), [state]);
 
@@ -328,6 +348,22 @@ export function App(): ReactElement {
       settings: { ...mergeUserSettings(prev), ...clampUserSettings(partial) },
     }));
   };
+
+  const setExerciseLoadHintsDisabled = useCallback(
+    (exerciseId: string, disabled: boolean) => {
+      persist((prev) => {
+        const merged = mergeUserSettings(prev);
+        const next = new Set(merged.hintsDisabledExerciseIds);
+        if (disabled) next.add(exerciseId);
+        else next.delete(exerciseId);
+        return normalizeAppStateV2({
+          ...prev,
+          settings: { ...merged, hintsDisabledExerciseIds: Array.from(next) },
+        });
+      });
+    },
+    [persist],
+  );
 
   const exportBackup = useCallback(() => {
     const env = buildExportEnvelope(state);
@@ -351,6 +387,18 @@ export function App(): ReactElement {
     setLastExportAtIso(now);
     setBackupImportMessage(null);
   }, [state]);
+
+  const copyDeviceSummary = useCallback(async () => {
+    const line = buildBackupDeviceSummaryLine(state, lastExportAtIso);
+    try {
+      await navigator.clipboard.writeText(line);
+      setCopySummaryStatus("copied");
+      window.setTimeout(() => setCopySummaryStatus("idle"), 2500);
+    } catch {
+      setCopySummaryStatus("error");
+      window.setTimeout(() => setCopySummaryStatus("idle"), 4000);
+    }
+  }, [state, lastExportAtIso]);
 
   const onImportBackupFile = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -753,6 +801,12 @@ export function App(): ReactElement {
                     <p className="pr-note">
                       {formatTopSetPrNote(c.topSetPr, c.current.topWeight, settings.weightUnit)}
                     </p>
+                    <ExerciseLoadHintsPreference
+                      hintsDisabled={settings.hintsDisabledExerciseIds.includes(c.exerciseId)}
+                      onHintsDisabledChange={(next) =>
+                        setExerciseLoadHintsDisabled(c.exerciseId, next)
+                      }
+                    />
                     {nextHint ? (
                       <div className="hint hint-block save-summary-next">
                         <p className="save-summary-next-label">Next session (algorithmic)</p>
@@ -906,7 +960,8 @@ export function App(): ReactElement {
           </h2>
           <p className="preset-intro">
             Used for labels and linear load suggestions. Weights are stored as you enter them (no
-            unit conversion). Max RPE gates load jumps when you log RPE on the top set.
+            unit conversion). Max RPE gates load jumps when you log RPE on the top set. You can turn
+            off next-session load suggestions per exercise in the log form or the post-save summary.
           </p>
           <div className="form row-inline">
             <label className="field">
@@ -972,7 +1027,8 @@ export function App(): ReactElement {
           </h2>
           <p className="preset-intro">
             Download a JSON file to back up this device&apos;s data, or choose a file to replace
-            everything stored here. Imports are validated; replacing data cannot be undone.
+            everything stored here. Imports are validated; replacing data cannot be undone. Copy the
+            one-line summary to paste into notes or a ticket.
           </p>
           <ul className="backup-meta-list" aria-label="Backup details">
             <li>
@@ -987,15 +1043,39 @@ export function App(): ReactElement {
               {lastExportAtIso ? formatExportTimestampForDisplay(lastExportAtIso) : "—"}
             </li>
           </ul>
-          {backupExportReminder ? (
+          {backupReminder.level === "never_exported" ? (
             <p className="backup-reminder" role="status">
-              {backupExportReminder}
+              {backupReminder.message}
+            </p>
+          ) : null}
+          {backupReminder.level === "stale" ? (
+            <p className="backup-reminder backup-reminder--stale" role="status">
+              {backupReminder.message}
             </p>
           ) : null}
           <div className="backup-actions">
             <button type="button" className="btn btn-secondary" onClick={exportBackup}>
               Export JSON
             </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => {
+                void copyDeviceSummary();
+              }}
+            >
+              Copy device summary
+            </button>
+            {copySummaryStatus === "copied" ? (
+              <span className="backup-copy-feedback" aria-live="polite">
+                Copied.
+              </span>
+            ) : null}
+            {copySummaryStatus === "error" ? (
+              <span className="backup-copy-feedback backup-copy-feedback--error" role="status">
+                Clipboard blocked — try again or copy manually from the list above.
+              </span>
+            ) : null}
             <button
               type="button"
               className="btn btn-secondary"
@@ -1033,7 +1113,7 @@ export function App(): ReactElement {
           {exercisesSorted.length === 0 ? (
             <p className="empty">Load a preset or add an exercise above.</p>
           ) : (
-            <form className="form" onSubmit={logSession}>
+            <form className="form log-session-form" onSubmit={logSession}>
               {presetBanner ? (
                 <div className="preset-banner" role="status">
                   <span>
@@ -1204,6 +1284,14 @@ export function App(): ReactElement {
                         ))}
                       </select>
                     </label>
+                    {block.exerciseId ? (
+                      <ExerciseLoadHintsPreference
+                        hintsDisabled={settings.hintsDisabledExerciseIds.includes(block.exerciseId)}
+                        onHintsDisabledChange={(next) =>
+                          setExerciseLoadHintsDisabled(block.exerciseId, next)
+                        }
+                      />
+                    ) : null}
                     <fieldset className="fieldset">
                       <legend className="label">Sets · weight ({settings.weightUnit})</legend>
                       {block.sets.map((row, i) => (
@@ -1272,10 +1360,16 @@ export function App(): ReactElement {
                   rows={2}
                 />
               </label>
-              <div className="actions">
-                <button type="submit" className="btn btn-primary" disabled={!canSaveSession}>
-                  Save session
-                </button>
+              <div className="log-session-save-wrap">
+                <div className="actions log-session-save-actions">
+                  <button
+                    type="submit"
+                    className="btn btn-primary btn-save-session"
+                    disabled={!canSaveSession}
+                  >
+                    Save session
+                  </button>
+                </div>
               </div>
             </form>
           )}

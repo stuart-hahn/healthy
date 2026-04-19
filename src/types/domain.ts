@@ -66,6 +66,11 @@ export type UserSettings = {
    * Ignored for suggestions when RPE is not logged on the top set.
    */
   maxRpeForLoadIncrease: number;
+  /**
+   * Exercises for which linear next-session load suggestions are hidden (user preference).
+   * IDs not in the catalog are dropped on normalize.
+   */
+  hintsDisabledExerciseIds: string[];
 };
 
 export type AppStateV2 = {

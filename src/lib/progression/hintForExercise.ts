@@ -21,6 +21,7 @@ export function linearHintUiForExercise(
   sessions: TrainingSession[],
   settings: UserSettings,
 ): LinearHintUi | null {
+  if (settings.hintsDisabledExerciseIds.includes(exerciseId)) return null;
   const hist = sessionsForExercise(sessions, exerciseId);
   const last = hist[0];
   if (!last) return null;
