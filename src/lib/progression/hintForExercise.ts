@@ -7,8 +7,10 @@ export type LinearHintUi = {
   primary: string;
   /** One-line rule transparency (option C / coaching UX) */
   rule: string;
-  /** Suggested next top-set working weight when the linear bump applies */
+  /** Target top-set weight when the linear rule applies (higher load, or same load for RPE hold). */
   nextWeight: number | null;
+  /** Set when `nextWeight` is from linear rule (omit when reps below target). */
+  loadAction?: "increment" | "hold";
 };
 
 /**
@@ -38,6 +40,7 @@ export function linearHintUiForExercise(
       primary: suggestion.reason,
       rule: suggestion.ruleHint,
       nextWeight: suggestion.weight,
+      loadAction: suggestion.loadAction,
     };
   }
   const u = unitLabel;
